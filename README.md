@@ -1,2 +1,2 @@
 # SchoolBox-backend
-De backend van de SchoolBox gemaakt in ~~Rust~~Go
+De backend van de SchoolBox gemaakt in Go
