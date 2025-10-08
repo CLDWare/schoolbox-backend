@@ -15,6 +15,9 @@ import (
 )
 
 func main() {
+	// Initialize logger with the updated configuration
+	logger.Init()
+
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		logger.Info(".env file not found, proceeding with environment variables")
@@ -22,9 +25,6 @@ func main() {
 
 	// Force reload configuration after .env is loaded
 	config.ForceReload()
-
-	// Initialize logger with the updated configuration
-	logger.Init()
 
 	// Load configuration
 	cfg := config.Get()
