@@ -3,18 +3,23 @@ package api
 import (
 	"net/http"
 
+	"github.com/CLDWare/schoolbox-backend/config"
+	"github.com/CLDWare/schoolbox-backend/internal/handlers"
 	"github.com/CLDWare/schoolbox-backend/internal/middleware"
 	"github.com/CLDWare/schoolbox-backend/pkg/response"
 )
 
 // API holds the API dependencies
 type API struct {
-	// userHandler *handlers.UserHandler for example
+	versionHandler *handlers.VersionHandler
 }
 
 // NewAPI creates a new API instance
 func NewAPI() *API {
-	return &API{}
+	cfg := config.Get()
+	return &API{
+		versionHandler: handlers.NewVersionHandler(cfg),
+	}
 }
 
 // CreateMux creates and configures the HTTP mux
@@ -26,6 +31,9 @@ func (api *API) CreateMux() *http.ServeMux {
 
 // setupRoutes configures all the routes.
 func (api *API) setupRoutes(mux *http.ServeMux) {
+	// Version route
+	mux.HandleFunc("/v", api.versionHandler.GetVersion)
+
 	// fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)
 }

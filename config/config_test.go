@@ -138,7 +138,7 @@ func TestConfig_EnvironmentVariables(t *testing.T) {
 		"DEBUG":               "true",
 		"DB_HOST":             "db-host",
 		"DB_PORT":             "5433",
-		"LOG_LEVEL":           "debug",
+		"LOG_LEVEL":           "info",
 	}
 
 	for key, value := range testValues {
