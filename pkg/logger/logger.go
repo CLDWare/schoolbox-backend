@@ -15,14 +15,14 @@ var (
 	initialized   bool
 )
 
-var logLevels = map[string]int{
+var logLevels = map[string]uint{
 	"debug": 1,
 	"info":  2,
 	"warn":  3,
 	"error": 4,
 }
 
-var currentLevel int
+var currentLevel uint
 
 // Init initializes the logger with configuration
 func Init() {
