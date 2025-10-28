@@ -1,2 +1,4 @@
+github.com/MonkyMars/gecho v0.2.2 h1:Aa1NAIvpHPnwETBMLxx7Nzqssyw4+bFIH3hai3vbrZE=
+github.com/MonkyMars/gecho v0.2.2/go.mod h1:YVhCOZ7yTbRfSZ2ttBNPBMj+Y9etM5x8n1Iv03oW5M8=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=

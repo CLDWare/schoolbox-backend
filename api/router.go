@@ -3,10 +3,11 @@ package api
 import (
 	"net/http"
 
+	"github.com/MonkyMars/gecho"
+
 	"github.com/CLDWare/schoolbox-backend/config"
 	"github.com/CLDWare/schoolbox-backend/internal/handlers"
 	"github.com/CLDWare/schoolbox-backend/internal/middleware"
-	"github.com/CLDWare/schoolbox-backend/pkg/response"
 )
 
 // API holds the API dependencies
@@ -46,5 +47,5 @@ func ApplyMiddleware(handler http.Handler) http.Handler {
 }
 
 func fallBack(w http.ResponseWriter, r *http.Request) {
-	response.Error(w, http.StatusNotFound, "Route not found")
+	gecho.NotFound(w).Send()
 }
