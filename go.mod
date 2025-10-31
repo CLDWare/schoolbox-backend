@@ -4,4 +4,4 @@ go 1.25.3
 
 require github.com/joho/godotenv v1.5.1
 
-require github.com/MonkyMars/gecho v0.2.2 // direct
+require github.com/MonkyMars/gecho v0.3.0 // direct
