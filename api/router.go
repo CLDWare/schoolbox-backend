@@ -41,7 +41,7 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 
 // ApplyMiddleware applies middleware to a handler
 func ApplyMiddleware(handler http.Handler) http.Handler {
-	return middleware.LoggingMiddleware(
+	return gecho.Handlers.HandleLogging(
 		middleware.CORSMiddleware(handler),
 	)
 }

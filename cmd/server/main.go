@@ -10,13 +10,13 @@ import (
 
 	"github.com/CLDWare/schoolbox-backend/api"
 	"github.com/CLDWare/schoolbox-backend/config"
-	"github.com/CLDWare/schoolbox-backend/pkg/logger"
+	"github.com/MonkyMars/gecho"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Initialize logger with the updated configuration
-	logger.Init()
+	// Initialize gecho logger
+	logger := gecho.Logger().InitLogger("info")
 
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {

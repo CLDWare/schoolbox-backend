@@ -4,13 +4,16 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CLDWare/schoolbox-backend/pkg/logger"
+	"github.com/MonkyMars/gecho"
 )
 
 // LoggingMiddleware logs HTTP requests
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+
+		// Get logger instance
+		logger := gecho.Logger()
 
 		// Create a response writer wrapper to capture status code
 		wrapper := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}

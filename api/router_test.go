@@ -4,14 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 )
 
 func TestAPI_WithMiddleware(t *testing.T) {
-	// Initialize logger for middleware test
-	logger.Init()
-
 	// Create API instance
 	api := NewAPI()
 	mux := api.CreateMux()
