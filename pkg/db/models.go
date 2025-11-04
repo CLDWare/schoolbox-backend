@@ -1,4 +1,4 @@
-package db
+package models
 
 import (
 	"time"
@@ -42,9 +42,9 @@ type Session struct {
 	Date            time.Time
 	FirstAnwserTime time.Time
 	LastAnwserTime  time.Time
-	a1_count        uint16
-	a2_count        uint16
-	a3_count        uint16
-	a4_count        uint16
-	a5_count        uint16
+	A1_count        uint16
+	A2_count        uint16
+	A3_count        uint16
+	A4_count        uint16
+	A5_count        uint16
 }
