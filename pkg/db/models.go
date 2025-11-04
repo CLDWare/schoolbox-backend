@@ -30,6 +30,7 @@ type Question struct {
 }
 
 type Session struct {
+	gorm.Model
 	UserID          uint
 	User            User `gorm:"foreignKey:UserID;references:ID"`
 	QuestionID      uint
