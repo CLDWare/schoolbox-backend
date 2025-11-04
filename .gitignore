@@ -1,4 +1,6 @@
 bin/
 .env*
-.vscode
 *.db
+
+.vscode
+*.code-workspace
