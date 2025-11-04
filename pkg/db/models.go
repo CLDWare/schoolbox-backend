@@ -8,12 +8,14 @@ import (
 
 type Device struct {
 	gorm.Model
-	ActiveUserID     *uint
-	ActiveUser       *User `gorm:"foreignKey:ActiveUserID;references:ID"`
 	Token            string
 	Room             *string `gorm:"unique"`
 	ActiveQuestionID uint
 	ActiveQuestion   Question `gorm:"foreignKey:ActiveQuestionID;references:ID"`
+	// Device lease
+	LeaseStart   time.Time
+	ActiveUserID *uint
+	ActiveUser   *User `gorm:"foreignKey:ActiveUserID;references:ID"`
 }
 
 type User struct {
