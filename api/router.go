@@ -12,14 +12,16 @@ import (
 
 // API holds the API dependencies
 type API struct {
-	versionHandler *handlers.VersionHandler
+	versionHandler   *handlers.VersionHandler
+	websocketHandler *handlers.WebsocketHandler
 }
 
 // NewAPI creates a new API instance
 func NewAPI() *API {
 	cfg := config.Get()
 	return &API{
-		versionHandler: handlers.NewVersionHandler(cfg),
+		versionHandler:   handlers.NewVersionHandler(cfg),
+		websocketHandler: handlers.NewWebsocketHandler(cfg),
 	}
 }
 
@@ -34,6 +36,7 @@ func (api *API) CreateMux() *http.ServeMux {
 func (api *API) setupRoutes(mux *http.ServeMux) {
 	// Version route
 	mux.HandleFunc("/v", api.versionHandler.GetVersion)
+	mux.HandleFunc("/ws", api.websocketHandler.InitialiseWebsocket)
 
 	// fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)
