@@ -12,37 +12,15 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		// Create a response writer wrapper to capture status code
-		wrapper := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-
-		next.ServeHTTP(wrapper, r)
+		next.ServeHTTP(w, r)
 
 		duration := time.Since(start)
-		if wrapper.statusCode >= 500 {
-			logger.Err(
-				"method", r.Method,
-				"path", r.URL.Path,
-				"status", wrapper.statusCode,
-				"duration", duration,
-				"remote_addr", r.RemoteAddr,
-			)
-		} else if wrapper.statusCode >= 400 {
-			logger.Warn(
-				"method", r.Method,
-				"path", r.URL.Path,
-				"status", wrapper.statusCode,
-				"duration", duration,
-				"remote_addr", r.RemoteAddr,
-			)
-		} else {
-			logger.Info(
-				"method", r.Method,
-				"path", r.URL.Path,
-				"status", wrapper.statusCode,
-				"duration", duration,
-				"remote_addr", r.RemoteAddr,
-			)
-		}
+		logger.Info(
+			"method", r.Method,
+			"path", r.URL.Path,
+			"duration", duration,
+			"remote_addr", r.RemoteAddr,
+		)
 	})
 }
 

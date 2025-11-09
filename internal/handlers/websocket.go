@@ -27,8 +27,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Request) {
-	logger.Init()
-
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		logger.Err(err)
