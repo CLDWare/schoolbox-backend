@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/MonkyMars/gecho"
+	"gorm.io/gorm"
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	"github.com/CLDWare/schoolbox-backend/internal/handlers"
@@ -17,11 +18,11 @@ type API struct {
 }
 
 // NewAPI creates a new API instance
-func NewAPI() *API {
+func NewAPI(db *gorm.DB) *API {
 	cfg := config.Get()
 	return &API{
 		versionHandler:   handlers.NewVersionHandler(cfg),
-		websocketHandler: handlers.NewWebsocketHandler(cfg),
+		websocketHandler: handlers.NewWebsocketHandler(cfg, db),
 	}
 }
 
