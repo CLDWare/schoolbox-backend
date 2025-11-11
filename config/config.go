@@ -103,7 +103,7 @@ func loadConfig() *Config {
 			Debug:       getEnvAsBool("DEBUG", false),
 		},
 		Heartbeat: WebsocketHearbeatConfig{
-			CheckInterval: getEnvAsDuration("HEARBEAT_CHECK_INTERVAL", 5*time.Second),
+			CheckInterval: getEnvAsDuration("HEARBEAT_CHECK_INTERVAL", 2*time.Second),
 			Delay:         getEnvAsDuration("HEARTBEAT_DELAY", 30*time.Second),
 			Interval:      getEnvAsDuration("HEARTBEAT_INTERVAL", 10*time.Second),
 			KillDelay:     getEnvAsDuration("HEARTBEAT_KILL_DELAY", 60*time.Second),
