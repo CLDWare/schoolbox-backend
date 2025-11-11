@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>device frontend</title>
+    </head>
+    <body>
+        <title>dev frontend</title>
+        <p id="message"></p>
+        <input id="pinInput" type="number"><button id="submitPin">Submit pin</button>
+        <p id="registrationSuccess" style="visibility:hidden;">Registered device with id <span id="deviceId"></span></p>
+        <script>
+            const API_URL = "http://localhost:8080";
+
+            const messagePar = document.getElementById("message");
+            const registrationSuccessPar = document.getElementById("registrationSuccess");
+            const deviceIdSpan = document.getElementById("deviceId");
+
+            const pinInput = document.getElementById("pinInput");
+            const submitPinButton = document.getElementById("submitPin");
+
+            submitPinButton.addEventListener("click", async (e) => {
+                const requestBody = JSON.stringify({
+                    pin: +pinInput.value
+                });
+                console.log(requestBody);
+                const res = await fetch(API_URL + "/registration_pin", {
+                    method: "POST",
+                    body: requestBody
+                });
+                let body = await res.json();
+                console.log(body);
+                messagePar.innerText = body.message;
+
+                if (body.success) {
+                    deviceIdSpan.innerText = body.data.id
+                    registrationSuccessPar.style.visibility = "visible"
+                } else {
+                    registrationSuccessPar.style.visibility = "hidden"
+                }
+            });
+        </script>
+    </body>
+</html>

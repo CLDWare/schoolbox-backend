@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>dev device</title>
+    <style>
+        .wsLog {
+            height: 60vh;
+            background: rgb(229, 229, 229);
+            border: 5px solid rgb(211, 211, 211);
+            border-radius: 15px;
+            overflow: scroll;
+        }
+
+        .wsLog > div {
+            border-bottom: 1px solid rgb(200, 200, 200);
+            padding: 5px;
+            display: flex;
+            align-items: center; 
+        }
+
+        .deviceData {
+            height: 9.5vh;
+            margin-top: .5vh;
+            background: rgb(229, 229, 229);
+            border: 5px solid rgb(211, 211, 211);
+            border-radius: 15px;
+            overflow: scroll;
+        }
+
+        .deviceData > span {
+            white-space: nowrap;
+        }
+
+        .server,
+        .device {
+            display: inline-block;
+            width: 3em;
+        }
+
+        .server {
+            color: chocolate;
+        }
+
+        .device {
+            color: cornflowerblue;
+        }
+
+        .autoMsg {
+            color: white;
+            background-color: plum;
+            padding: 4px;
+            border-radius: 15px;
+            margin-left: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="wsLog" class="wsLog">
+    </div>
+    <div id="deviceData" class="deviceData">
+    </div>
+    <div id="startFlowDiv">
+        <select id="flowSelect">
+            <option value="registrationFlow">Registration</option>
+        </select>
+        <button id="startFlowBtn">Start flow</button>
+    </div>
+    <div id="registrationFlowDiv" style="visibility: hidden;">
+        <p>Registration pin: <span id="registrationPin"></span></p>
+    </div>
+    <script>
+        const API_URL = "http://localhost:8080";
+        let autoPong = true;
+
+        let deviceData = {};
+        const deviceDataDiv = document.getElementById("deviceData");
+        function updateDeviceData(key, value) {
+            deviceData[key] = value;
+            console.log(deviceData)
+
+            deviceDataDiv.innerHTML = "";
+            for (const key in deviceData) {
+                if (!Object.hasOwn(deviceData, key)) continue;
+                const value = deviceData[key];
+
+                const span = document.createElement("span");
+                span.innerText = `${key}: ${value}`;
+                deviceDataDiv.appendChild(span);
+                deviceDataDiv.appendChild(document.createElement("br"));
+            }
+        };
+
+        const ws = new WebSocket(API_URL + "/ws");
+        console.log("Websocket connection established", ws);
+        const wsLogDiv = document.getElementById("wsLog");
+
+        function sendMessage(data, auto) {
+            const div = document.createElement("div");
+
+            const type = document.createElement("span");
+            type.innerText = "device";
+            type.classList.add("device");
+            div.appendChild(type);
+
+            const message = document.createElement("span");
+            message.innerText = data;
+            div.appendChild(message);
+
+            if (auto) {
+                const autoSpan = document.createElement("span");
+                autoSpan.innerText = "auto";
+                autoSpan.classList.add("autoMsg");
+                div.appendChild(autoSpan);
+            }
+
+            wsLogDiv.appendChild(div);
+            return ws.send(data);
+        }
+
+        let handleWsMessage = (data) => {}
+        ws.addEventListener("message", (event) => {
+            console.log("Websocket message recieved:", event.data);
+            const div = document.createElement("div");
+
+            const type = document.createElement("span");
+            type.innerText = "server";
+            type.classList.add("server");
+            div.appendChild(type);
+
+            const message = document.createElement("span");
+            message.innerText = event.data;
+            div.appendChild(message);
+
+            wsLogDiv.appendChild(div);
+
+            let data = JSON.parse(event.data)
+
+            if (data.c == "ping") {
+                if (autoPong) {
+                    sendMessage(JSON.stringify({"c":"pong"}), true)
+                }
+            } else {
+                handleWsMessage(data)
+            };
+        });
+
+        let stateFlows = {};
+
+        const registrationFlowDiv = document.getElementById("registrationFlowDiv");
+        const registrationPinSpan = document.getElementById("registrationPin");
+        const deviceIdSpan = document.getElementById("deviceId");
+        const deviceTokenSpan = document.getElementById("deviceToken")
+        function handleRegistrationMessages(data) {
+            if (data.c == "reg_pin") {
+                registrationPinSpan.innerText = data.d.pin
+            } else if (data.c == "reg_ok") {
+                updateDeviceData("deviceId", data.d.id);
+                updateDeviceData("deviceToken", data.d.token);
+            }
+        }
+        stateFlows.registrationFlow = async () => {
+            registrationFlowDiv.style.visibility = "visible";
+            handleWsMessage = handleRegistrationMessages
+
+            sendMessage(JSON.stringify({"c":"reg_start"}));
+        };
+
+        const startFlowDiv = document.getElementById("startFlowDiv");
+        const flowSelect = document.getElementById("flowSelect");
+        const startFlowBtn = document.getElementById("startFlowBtn");
+        startFlowBtn.addEventListener("click", (e) => {
+            startFlowDiv.style.visibility = "hidden";
+            stateFlows[flowSelect.options[flowSelect.selectedIndex].value]();
+        });
+    </script>
+</body>
+
+</html>
