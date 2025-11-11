@@ -204,9 +204,20 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		conn.state = 3
 		conn.stateFlow = nil
 		conn.deviceID = &flowData.targetID
+
+		// Kick old device
+		if conn.handler.connectedDevices[*conn.deviceID] != 0 {
+			oldConn := conn.handler.connections[conn.handler.connectedDevices[*conn.deviceID]]
+			errCode := uint(4)
+			errMsg := "Logged in at other place. Only one connection allowed per device."
+			sendMessage(*oldConn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			oldConn.close()
+		}
+
+		conn.handler.connectedDevices[*conn.deviceID] = conn.connectionID
+
 		sendMessage(*conn.ws, websocketMessage{Command: "auth_ok"})
 		logger.Info(fmt.Sprintf("Device %d authenticated successfully", *conn.deviceID))
-
 	default:
 		logger.Err(fmt.Sprintf("Invalid command '%s' reached authenticationFlow", message.Command))
 	}

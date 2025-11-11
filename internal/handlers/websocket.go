@@ -14,11 +14,27 @@ import (
 )
 
 type WebsocketHandler struct {
-	config *config.Config
-	db     *gorm.DB
+	config           *config.Config
+	db               *gorm.DB
+	connections      map[uint]*websocketConnection
+	nextID           uint
+	connectedDevices map[uint]uint
+}
+
+func (h *WebsocketHandler) addConnection(conn *websocketConnection) {
+	h.nextID = h.nextID + 1
+	conn.handler = h
+	conn.connectionID = h.nextID
+	h.connections[h.nextID] = conn
+
+	conn.ws.SetCloseHandler(func(code int, text string) error {
+		return conn.close()
+	})
 }
 
 type websocketConnection struct {
+	handler       *WebsocketHandler
+	connectionID  uint
 	ws            *websocket.Conn
 	db            *gorm.DB
 	deviceID      *uint
@@ -26,6 +42,19 @@ type websocketConnection struct {
 	stateFlow     any
 	connectedAt   time.Time
 	latestMessage time.Time
+}
+
+func (conn websocketConnection) close() error {
+	conn.ws.Close()
+
+	delete(conn.handler.connections, conn.connectionID)
+	if conn.deviceID != nil {
+		delete(conn.handler.connectedDevices, *conn.deviceID)
+		logger.Info(fmt.Sprintf("Closed connection %d, device %d", conn.connectionID, *conn.deviceID))
+	} else {
+		logger.Info(fmt.Sprintf("Closed connection %d", conn.connectionID))
+	}
+	return nil
 }
 
 type websocketMessage struct {
@@ -40,8 +69,11 @@ type websocketErrorMessage struct {
 
 func NewWebsocketHandler(cfg *config.Config, db *gorm.DB) *WebsocketHandler {
 	return &WebsocketHandler{
-		config: cfg,
-		db:     db,
+		config:           cfg,
+		db:               db,
+		connections:      map[uint]*websocketConnection{},
+		connectedDevices: map[uint]uint{},
+		nextID:           0,
 	}
 }
 
@@ -73,10 +105,13 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 	defer ws.Close()
 
 	conn := websocketConnection{
+		handler:     h,
 		ws:          ws,
 		db:          h.db,
 		connectedAt: time.Now(),
 	}
+	h.addConnection(&conn)
+	logger.Info(fmt.Sprintf("New connection %d", conn.connectionID))
 
 	for {
 		// Read message from client
