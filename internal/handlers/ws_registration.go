@@ -101,6 +101,7 @@ func (h *WebsocketHandler) registerWithPin(pin uint) (*models.Device, error) {
 
 	conn.state = 0
 	conn.stateFlow = nil
+	delete(h.registrationPins, pin)
 
 	logger.Info(fmt.Sprintf("Registered new device with ID %d", device.ID))
 
