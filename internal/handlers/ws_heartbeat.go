@@ -8,17 +8,12 @@ import (
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 )
 
-const HEARBEAT_CHECK_INTERVAL = 5 * time.Second
-const HEARTBEAT_DELAY = 30 * time.Second      // Time after last message before triggering first heartbeat
-const HEARTBEAT_INTERVAL = 10 * time.Second   // Time between heartbeats
-const HEARTBEAT_KILL_DELAY = 60 * time.Second // Time after last message before killing connection
-
 func (conn *websocketConnection) startHeartbeatMonitor() {
 	ctx, cancel := context.WithCancel(context.Background())
 	conn.hearbeat_cancel = cancel
 
 	go func() {
-		ticker := time.NewTicker(HEARBEAT_CHECK_INTERVAL)
+		ticker := time.NewTicker(conn.handler.config.Heartbeat.CheckInterval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -27,7 +22,7 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 			case <-ticker.C:
 				age := time.Since(conn.latestMessage)
 				heartbeat_age := time.Since(conn.latestHeartbeat)
-				if age >= HEARTBEAT_KILL_DELAY {
+				if age >= conn.handler.config.Heartbeat.KillDelay {
 					errCode := uint(1)
 					errMsg := "Hearbeat missed"
 					sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
@@ -39,7 +34,7 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 						conn.pongsRecieved,
 						conn.pingsSent,
 					))
-				} else if age >= HEARTBEAT_DELAY && heartbeat_age >= HEARTBEAT_INTERVAL {
+				} else if age >= conn.handler.config.Heartbeat.Delay && heartbeat_age >= conn.handler.config.Heartbeat.Interval {
 					command := "ping"
 					sendMessage(*conn.ws, websocketMessage{Command: command})
 					conn.pingsSent++

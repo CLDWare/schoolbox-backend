@@ -20,6 +20,9 @@ type Config struct {
 
 	// Application configuration
 	App AppConfig `json:"app"`
+
+	// Websocket heartbeat configuration
+	Heartbeat WebsocketHearbeatConfig `json:"heartbeat"`
 }
 
 // ServerConfig holds server-specific configuration
@@ -42,6 +45,14 @@ type AppConfig struct {
 	Version     string `json:"version"`
 	Environment string `json:"environment"`
 	Debug       bool   `json:"debug"`
+}
+
+// WebsocketHearbeatConfig holds websocket heartbeat-specific configuration
+type WebsocketHearbeatConfig struct {
+	CheckInterval time.Duration `json:"check_interval"` // Interval at which hearbeat times are checked
+	Delay         time.Duration `json:"delay"`          // Time after last message before triggering first heartbeat
+	Interval      time.Duration `json:"interval"`       // Time between heartbeats
+	KillDelay     time.Duration `json:"kill_delay"`     // Time after last message before killing connection
 }
 
 var (
@@ -90,6 +101,12 @@ func loadConfig() *Config {
 			Version:     getEnv("APP_VERSION", "1.0.0"),
 			Environment: getEnv("ENV", "development"),
 			Debug:       getEnvAsBool("DEBUG", false),
+		},
+		Heartbeat: WebsocketHearbeatConfig{
+			CheckInterval: getEnvAsDuration("HEARBEAT_CHECK_INTERVAL", 5*time.Second),
+			Delay:         getEnvAsDuration("HEARTBEAT_DELAY", 30*time.Second),
+			Interval:      getEnvAsDuration("HEARTBEAT_INTERVAL", 10*time.Second),
+			KillDelay:     getEnvAsDuration("HEARTBEAT_KILL_DELAY", 60*time.Second),
 		},
 	}
 
