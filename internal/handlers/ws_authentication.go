@@ -164,7 +164,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		device, err := gorm.G[db.Device](conn.db).Where("id = ?", flowData.targetID).First(ctx)
 		if err != nil {
 			errCode := uint(0)
-			errMsg := fmt.Sprintf("Could not retrieve device from database")
+			errMsg := fmt.Sprintf("Could not retrieve device %d from database", flowData.targetID)
 			sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			conn.state = 0
 			conn.stateFlow = nil
@@ -174,7 +174,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		decodedSignature, err := hex.DecodeString(message.Signature)
 		if err != nil {
 			errCode := uint(3)
-			errMsg := "Invalid signature encoding"
+			errMsg := "Invalid signature encoding."
 			sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			conn.state = 0
 			conn.stateFlow = nil

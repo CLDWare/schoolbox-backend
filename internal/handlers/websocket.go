@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -33,19 +34,24 @@ func (h *WebsocketHandler) addConnection(conn *websocketConnection) {
 }
 
 type websocketConnection struct {
-	handler       *WebsocketHandler
-	connectionID  uint
-	ws            *websocket.Conn
-	db            *gorm.DB
-	deviceID      *uint
-	state         uint // 0 none;1 registering;2 authenticating;3 authenticated;
-	stateFlow     any
-	connectedAt   time.Time
-	latestMessage time.Time
+	handler         *WebsocketHandler
+	connectionID    uint
+	ws              *websocket.Conn
+	db              *gorm.DB
+	deviceID        *uint
+	state           uint // 0 none;1 registering;2 authenticating;3 authenticated;
+	stateFlow       any
+	connectedAt     time.Time
+	latestMessage   time.Time
+	hearbeat_cancel context.CancelFunc
+	latestHeartbeat time.Time
+	pingsSent       uint
+	pongsRecieved   uint
 }
 
 func (conn websocketConnection) close() error {
 	conn.ws.Close()
+	conn.stopHeartbeatMonitor()
 
 	delete(conn.handler.connections, conn.connectionID)
 	if conn.deviceID != nil {
@@ -105,12 +111,14 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 	defer ws.Close()
 
 	conn := websocketConnection{
-		handler:     h,
-		ws:          ws,
-		db:          h.db,
-		connectedAt: time.Now(),
+		handler:       h,
+		ws:            ws,
+		db:            h.db,
+		connectedAt:   time.Now(),
+		latestMessage: time.Now(),
 	}
 	h.addConnection(&conn)
+	conn.startHeartbeatMonitor()
 	logger.Info(fmt.Sprintf("New connection %d", conn.connectionID))
 
 	for {
@@ -128,7 +136,7 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 			logger.Err("Invalid JSON:", err)
 			errCode := uint(0)
 			errMsg := err.Error()
-			sendErr := sendMessage(*ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			if sendErr != nil {
 				break
 			}
@@ -140,16 +148,19 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		if message.Command == "" {
 			errCode := uint(0)
 			errMsg := "A command ('c') is required"
-			sendErr := sendMessage(*ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			if sendErr != nil {
 				break
 			}
 		} else if message.Command == "ping" {
 			command := "pong"
-			sendErr := sendMessage(*ws, websocketMessage{Command: command})
+			sendErr := sendMessage(*conn.ws, websocketMessage{Command: command})
 			if sendErr != nil {
 				break
 			}
+		} else if message.Command == "pong" {
+			// Don't need to do anything, just here to prevent invalid command error
+			conn.pongsRecieved++
 		} else if triggersRegistrationFlow(&message) {
 			regErr := registrationFlow(&conn, message)
 			if regErr != nil {
@@ -163,7 +174,7 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		} else {
 			errCode := uint(0)
 			errMsg := fmt.Sprintf("Invalid command '%s'", message.Command)
-			sendErr := sendMessage(*ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			if sendErr != nil {
 				break
 			}
