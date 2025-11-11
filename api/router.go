@@ -13,16 +13,19 @@ import (
 
 // API holds the API dependencies
 type API struct {
-	versionHandler   *handlers.VersionHandler
-	websocketHandler *handlers.WebsocketHandler
+	versionHandler      *handlers.VersionHandler
+	websocketHandler    *handlers.WebsocketHandler
+	registrationHandler *handlers.RegistrationHandler
 }
 
 // NewAPI creates a new API instance
 func NewAPI(db *gorm.DB) *API {
 	cfg := config.Get()
+	websocketHandler := handlers.NewWebsocketHandler(cfg, db)
 	return &API{
-		versionHandler:   handlers.NewVersionHandler(cfg),
-		websocketHandler: handlers.NewWebsocketHandler(cfg, db),
+		versionHandler:      handlers.NewVersionHandler(cfg),
+		websocketHandler:    websocketHandler,
+		registrationHandler: handlers.NewRegistrationHandler(cfg, websocketHandler),
 	}
 }
 
@@ -37,7 +40,10 @@ func (api *API) CreateMux() *http.ServeMux {
 func (api *API) setupRoutes(mux *http.ServeMux) {
 	// Version route
 	mux.HandleFunc("/v", api.versionHandler.GetVersion)
+	// Websocket connection
 	mux.HandleFunc("/ws", api.websocketHandler.InitialiseWebsocket)
+	//
+	mux.HandleFunc("/registration_pin", api.registrationHandler.PostRegistrationPin)
 
 	// fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)

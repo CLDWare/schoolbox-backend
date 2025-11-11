@@ -20,7 +20,7 @@ type WebsocketHandler struct {
 	connections      map[uint]*websocketConnection
 	nextID           uint
 	connectedDevices map[uint]uint
-	registrationPins map[int]uint
+	registrationPins map[uint]uint
 }
 
 func (h *WebsocketHandler) addConnection(conn *websocketConnection) {
@@ -81,6 +81,7 @@ func NewWebsocketHandler(cfg *config.Config, db *gorm.DB) *WebsocketHandler {
 		connections:      map[uint]*websocketConnection{},
 		connectedDevices: map[uint]uint{},
 		nextID:           0,
+		registrationPins: map[uint]uint{},
 	}
 }
 
