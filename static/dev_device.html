@@ -4,8 +4,71 @@
 <head>
     <title>dev device</title>
     <style>
+        /* thank you, https://www.w3schools.com/howto/howto_css_switch.asp */
+        /* The switch - the box around the slider */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        /* Hide default HTML checkbox */
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        /* The slider */
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: plum;
+        }
+
+        input:checked+.slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        /* my css */
         .statusBar {
             height: 5vh;
+            display: flex;
+            align-items: center;
         }
 
         #connectionStatus::before {
@@ -58,12 +121,15 @@
             color: cornflowerblue;
         }
 
-        .autoMsg {
+        .autoMsg,.flowMsg {
             color: white;
             background-color: plum;
-            padding: 4px;
+            padding: 4px 6px;
             border-radius: 15px;
             margin-left: auto;
+        }
+        .flowMsg {
+            background-color: burlywood;
         }
 
         .deviceData {
@@ -78,12 +144,21 @@
         .deviceData>span {
             white-space: nowrap;
         }
+
+        textarea#rawCommand {
+            height: 20vh;
+            width: calc(100% - 8px);
+        }
     </style>
 </head>
 
 <body>
     <div id="statusBar" class="statusBar">
         <span id="connectionStatus"></span>
+        <label class="switch" style="margin-left:auto;">
+            <input type="checkbox" id="autoPong" checked>
+            <span class="slider round"></span>
+        </label>
     </div>
     <div id="wsLog" class="wsLog"></div>
     <div id="deviceData" class="deviceData"></div>
@@ -91,6 +166,9 @@
         <select id="flowSelect">
             <option value="registrationFlow">Registration</option>
             <option value="authenticationFlow">Authentication</option>
+            <option value="rawFlow">Enter Raw Command</option>
+            <option value="pingFlow">ping</option>
+            <option value="pongFlow">pong</option>
         </select>
         <button id="startFlowBtn">Start flow</button>
     </div>
@@ -104,9 +182,16 @@
         <input id="authenticationToken" placeholder="token">
         <button id="authenticationSubmit">Authenticate</button>
     </div>
+    <div id="rawFlowDiv" style="display: none;">
+        <textarea id="rawCommand"></textarea><br>
+        <button id="sendRawCommand">Send</button>
+        <button id="closeRawFlow">Close</button>
+    </div>
     <script>
         const API_URL = "http://localhost:8080";
         let autoPong = true;
+        const autoPongInput = document.getElementById("autoPong");
+        autoPongInput.addEventListener("change", (e) => autoPong = autoPongInput.checked)
 
         let deviceData = {};
         const deviceDataDiv = document.getElementById("deviceData");
@@ -142,6 +227,12 @@
             connectionStatusSpan.classList.remove("connected")
         });
         const wsLogDiv = document.getElementById("wsLog");
+        function appendLog(el) {
+            wsLogDiv.appendChild(el);
+            el.scrollIntoView({
+                "behavior": "smooth",
+            });
+        }
 
         function sendMessage(data, auto) {
             const div = document.createElement("div");
@@ -161,14 +252,19 @@
             message.innerText = data;
             div.appendChild(message);
 
-            if (auto) {
+            if (auto == true) {
                 const autoSpan = document.createElement("span");
                 autoSpan.innerText = "auto";
                 autoSpan.classList.add("autoMsg");
                 div.appendChild(autoSpan);
-            }
+            } else if (auto != null) {
+                const flowSpan = document.createElement("span");
+                flowSpan.innerText = auto;
+                flowSpan.classList.add("flowMsg");
+                div.appendChild(flowSpan);
+            };
 
-            wsLogDiv.appendChild(div);
+            appendLog(div);
             return ws.send(data);
         }
 
@@ -192,7 +288,7 @@
             message.innerText = event.data;
             div.appendChild(message);
 
-            wsLogDiv.appendChild(div);
+            appendLog(div);
 
             let data = JSON.parse(event.data)
 
@@ -221,13 +317,14 @@
                 updateDeviceData("deviceToken", data.d.token);
                 registrationFlowDiv.style.display = "none";
                 startFlowDiv.style.display = "inherit";
+                updateFlow();
             }
         }
         stateFlows.registrationFlow = async () => {
             registrationFlowDiv.style.display = "inherit";
             handleWsMessage = handleRegistrationMessages;
 
-            sendMessage(JSON.stringify({ "c": "reg_start" }));
+            sendMessage(JSON.stringify({ "c": "reg_start" }), "registration");
         };
 
         const authenticationFlowDiv = document.getElementById("authenticationFlowDiv");
@@ -242,10 +339,12 @@
                 "d": {
                     "id": +authenticationIdInput.value
                 }
-            }));
+            }), "authentication");
+            authenticationStartButton.disabled = true
+            authenticationSubmitButton.disabled = false
         });
         function toHex(data) {
-            return Array.from(data).map((b) => b.toString(16)).join("");
+            return Array.from(data).map((b) => b.toString(16).padStart(2, "0")).join("");
         }
         async function generateHMAC(key, message) {
             const encoder = new TextEncoder();
@@ -255,7 +354,7 @@
             const cryptoKey = await crypto.subtle.importKey(
                 "raw",
                 keyData,
-                {name: "HMAC", hash: {name: "SHA-256"}},
+                { name: "HMAC", hash: { name: "SHA-256" } },
                 false,
                 ["sign"],
             );
@@ -265,7 +364,7 @@
                 cryptoKey,
                 messageData,
             );
-            
+
             return toHex(new Uint8Array(signature));
         }
         authenticationSubmitButton.addEventListener("click", async (event) => {
@@ -274,11 +373,11 @@
 
             const signature = await generateHMAC(token, nonce);
             sendMessage(JSON.stringify({
-                "c":"auth_validate",
+                "c": "auth_validate",
                 "d": {
                     "signature": signature
                 }
-            }));
+            }), "authentication");
         });
         function handleAuthenticationMessages(data) {
             if (data.c == "auth_nonce") {
@@ -287,14 +386,45 @@
                 updateDeviceData("auth", true);
                 authenticationFlowDiv.style.display = "none";
                 startFlowDiv.style.display = "inherit";
+                updateFlow();
             }
         }
-        stateFlows.authenticationFlow = async () => {
+        stateFlows.authenticationFlow = () => {
             authenticationFlowDiv.style.display = "inherit";
+            authenticationStartButton.disabled = false
+            authenticationSubmitButton.disabled = true
             handleWsMessage = handleAuthenticationMessages;
 
             authenticationIdInput.value = deviceData.deviceId || ""
             authenticationTokenInput.value = deviceData.deviceToken || ""
+        };
+
+        const rawFlowDiv = document.getElementById("rawFlowDiv");
+        const rawCommandTextarea = document.getElementById("rawCommand");
+        const sendRawCommandButton = document.getElementById("sendRawCommand");
+        const closeRawFlowButton = document.getElementById("closeRawFlow");
+        closeRawFlowButton.addEventListener("click", () => {
+            rawFlowDiv.style.display = "none";
+            startFlowDiv.style.display = "inherit";
+        });
+        sendRawCommandButton.addEventListener("click", () => {
+            sendMessage(rawCommandTextarea.value);
+        });
+        stateFlows.rawFlow = () => {
+            rawFlowDiv.style.display = "inherit";
+        };
+
+        stateFlows.pingFlow = () => {
+            sendMessage(JSON.stringify({
+                "c": "ping",
+            }), "ping");
+            startFlowDiv.style.display = "inherit";
+        };
+        stateFlows.pongFlow = () => {
+            sendMessage(JSON.stringify({
+                "c": "pong",
+            }), "pong");
+            startFlowDiv.style.display = "inherit";
         };
 
         const startFlowDiv = document.getElementById("startFlowDiv");
@@ -304,6 +434,15 @@
             startFlowDiv.style.display = "none";
             stateFlows[flowSelect.options[flowSelect.selectedIndex].value]();
         });
+        function updateFlow(e) {
+            const selected = flowSelect.options[flowSelect.selectedIndex].value
+            if ((selected == "registrationFlow" || selected == "authenticationFlow") && deviceData.auth) {
+                startFlowBtn.disabled = true
+            } else {
+                startFlowBtn.disabled = false
+            }
+        }
+        flowSelect.addEventListener("change", updateFlow)
     </script>
 </body>
 
