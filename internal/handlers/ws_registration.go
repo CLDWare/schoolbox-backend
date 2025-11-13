@@ -44,7 +44,7 @@ func registrationFlow(conn *websocketConnection, message websocketMessage) error
 		if conn.state != 0 {
 			errCode := uint(0)
 			errMsg := fmt.Sprintf("Can not start registration in current state %d, only state 0 is allowed", conn.state)
-			sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			return nil
 		}
 		conn.state = 1
@@ -57,7 +57,7 @@ func registrationFlow(conn *websocketConnection, message websocketMessage) error
 		data := map[string]any{
 			"pin": pin,
 		}
-		sendMessage(*conn.ws, websocketMessage{Command: command, Data: data})
+		sendMessage(conn.ws, websocketMessage{Command: command, Data: data})
 		logger.Info(fmt.Sprintf("Started registration for connection %d with pin %d", conn.handler.registrationPins[pin], pin))
 	}
 	return nil
@@ -71,7 +71,7 @@ func (h *WebsocketHandler) registerWithPin(pin uint) (*models.Device, error) {
 	}
 	conn, ok := h.connections[connectionID]
 	if !ok {
-		logger.Err(fmt.Sprintf("No connection for connectionID %s during registration with pin", connectionID))
+		logger.Err(fmt.Sprintf("No connection for connectionID %d during registration with pin", connectionID))
 		return nil, errors.New("No connection for connectionID")
 	}
 
@@ -97,7 +97,7 @@ func (h *WebsocketHandler) registerWithPin(pin uint) (*models.Device, error) {
 		"id":    device.ID,
 		"token": token,
 	}
-	sendMessage(*conn.ws, websocketMessage{Command: command, Data: data})
+	sendMessage(conn.ws, websocketMessage{Command: command, Data: data})
 
 	conn.state = 0
 	conn.stateFlow = nil

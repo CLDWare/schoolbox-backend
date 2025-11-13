@@ -91,7 +91,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func sendMessage(ws websocket.Conn, msg any) error {
+func sendMessage(ws *websocket.Conn, msg any) error {
 	message, err := json.Marshal(msg)
 	if err != nil {
 		logger.Err("JSON marshal err: ", err)
@@ -138,7 +138,7 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 			logger.Err("Invalid JSON:", err)
 			errCode := uint(0)
 			errMsg := err.Error()
-			sendErr := sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			if sendErr != nil {
 				break
 			}
@@ -150,13 +150,13 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		if message.Command == "" {
 			errCode := uint(0)
 			errMsg := "A command ('c') is required"
-			sendErr := sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			if sendErr != nil {
 				break
 			}
 		} else if message.Command == "ping" {
 			command := "pong"
-			sendErr := sendMessage(*conn.ws, websocketMessage{Command: command})
+			sendErr := sendMessage(conn.ws, websocketMessage{Command: command})
 			if sendErr != nil {
 				break
 			}
@@ -176,7 +176,7 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		} else {
 			errCode := uint(0)
 			errMsg := fmt.Sprintf("Invalid command '%s'", message.Command)
-			sendErr := sendMessage(*conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			if sendErr != nil {
 				break
 			}
