@@ -50,8 +50,10 @@ type websocketConnection struct {
 	pongsRecieved   uint
 }
 
-func (conn websocketConnection) close() error {
-	conn.ws.Close()
+func (conn *websocketConnection) close() error {
+	if err := conn.ws.Close(); err != nil {
+		logger.Err("Error closing websocket:", err)
+	}
 	conn.stopHeartbeatMonitor()
 
 	delete(conn.handler.connections, conn.connectionID)
