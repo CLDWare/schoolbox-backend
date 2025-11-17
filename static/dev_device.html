@@ -211,29 +211,6 @@
             }
         };
 
-        const ws = new WebSocket(API_URL + "/ws");
-
-        const connectionStatusSpan = document.getElementById("connectionStatus");
-        ws.addEventListener("open", () => {
-            console.log("Websocket connection established", ws);
-
-            connectionStatusSpan.innerText = "Connected";
-            connectionStatusSpan.classList.add("connected");
-        });
-        ws.addEventListener("close", () => {
-            console.log("Websocket connection closed", ws);
-
-            connectionStatusSpan.innerText = "Disconnected"
-            connectionStatusSpan.classList.remove("connected")
-        });
-        const wsLogDiv = document.getElementById("wsLog");
-        function appendLog(el) {
-            wsLogDiv.appendChild(el);
-            el.scrollIntoView({
-                "behavior": "smooth",
-            });
-        }
-
         function sendMessage(data, auto) {
             const div = document.createElement("div");
 
@@ -269,39 +246,68 @@
         }
 
         let handleWsMessage = (data) => { }
-        ws.addEventListener("message", (event) => {
-            console.log("Websocket message recieved:", event.data);
-            const div = document.createElement("div");
+        const wsLogDiv = document.getElementById("wsLog");
+        function appendLog(el) {
+            wsLogDiv.appendChild(el);
+            el.scrollIntoView({
+                "behavior": "smooth",
+            });
+        }
+        let ws
+        function connectWebsocket() {
+            ws = new WebSocket(API_URL + "/ws");
 
-            const timestamp = document.createElement("span");
-            datetext = new Date(Date.now()).toTimeString().split(' ')[0];
-            timestamp.innerText = `[${datetext}]`;
-            timestamp.classList.add("timestamp");
-            div.appendChild(timestamp);
+            const connectionStatusSpan = document.getElementById("connectionStatus");
+            ws.addEventListener("open", () => {
+                console.log("Websocket connection established", ws);
 
-            const type = document.createElement("span");
-            type.innerText = "server";
-            type.classList.add("server");
-            div.appendChild(type);
+                connectionStatusSpan.innerText = "Connected";
+                connectionStatusSpan.classList.add("connected");
+            });
+            ws.addEventListener("close", () => {
+                console.log("Websocket connection closed", ws);
 
-            const message = document.createElement("span");
-            message.innerText = event.data;
-            div.appendChild(message);
+                connectionStatusSpan.innerText = "Disconnected"
+                connectionStatusSpan.classList.remove("connected")
 
-            appendLog(div);
+                setTimeout(connectWebsocket, 1000)
+            });
 
-            let data = JSON.parse(event.data)
+            ws.addEventListener("message", (event) => {
+                console.log("Websocket message recieved:", event.data);
+                const div = document.createElement("div");
 
-            if (data.c == "ping") {
-                if (autoPong) {
-                    sendMessage(JSON.stringify({ "c": "pong" }), true)
-                }
-            } else {
-                if (handleWsMessage) {
-                    handleWsMessage(data)
-                }
-            };
-        });
+                const timestamp = document.createElement("span");
+                datetext = new Date(Date.now()).toTimeString().split(' ')[0];
+                timestamp.innerText = `[${datetext}]`;
+                timestamp.classList.add("timestamp");
+                div.appendChild(timestamp);
+
+                const type = document.createElement("span");
+                type.innerText = "server";
+                type.classList.add("server");
+                div.appendChild(type);
+
+                const message = document.createElement("span");
+                message.innerText = event.data;
+                div.appendChild(message);
+
+                appendLog(div);
+
+                let data = JSON.parse(event.data)
+
+                if (data.c == "ping") {
+                    if (autoPong) {
+                        sendMessage(JSON.stringify({ "c": "pong" }), true)
+                    }
+                } else {
+                    if (handleWsMessage) {
+                        handleWsMessage(data)
+                    }
+                };
+            });
+        }
+        connectWebsocket();
 
         let stateFlows = {};
 

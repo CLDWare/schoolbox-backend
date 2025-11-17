@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
+	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 	"gorm.io/gorm"
 
@@ -40,7 +41,7 @@ type websocketConnection struct {
 	ws              *websocket.Conn
 	db              *gorm.DB
 	deviceID        *uint
-	state           uint // 0 none;1 registering;2 authenticating;3 authenticated;
+	state           uint // 0 none;1 registering;2 authenticating;3 authenticated;4 active_session;
 	stateFlow       any
 	connectedAt     time.Time
 	latestMessage   time.Time
@@ -113,6 +114,7 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		return
 	}
 	defer ws.Close()
+	ctx := context.Background()
 
 	conn := websocketConnection{
 		handler:       h,
@@ -133,6 +135,9 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 			break
 		}
 		conn.latestMessage = time.Now()
+		if conn.deviceID != nil {
+			gorm.G[models.Device](h.db).Where("id = ?", conn.deviceID).Update(ctx, "LastSeen", time.Now())
+		}
 
 		var message websocketMessage
 		err = json.Unmarshal(msg, &message)

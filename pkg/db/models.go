@@ -10,6 +10,7 @@ type Device struct {
 	gorm.Model
 	RegistrationDate time.Time
 	LatestLogin      *time.Time
+	LastSeen         *time.Time
 	Token            string
 	Room             *string `gorm:"unique"`
 	ActiveQuestionID uint
