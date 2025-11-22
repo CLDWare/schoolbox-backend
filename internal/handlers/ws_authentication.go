@@ -155,7 +155,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not authenticationFlowData", conn.stateFlow)
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			logger.Err(errMsg)
-			conn.ws.Close()
+			conn.close()
 			return errors.New(errMsg)
 		}
 

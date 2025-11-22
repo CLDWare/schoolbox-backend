@@ -77,7 +77,7 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not sessionFlowData", conn.stateFlow)
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
 			logger.Err(errMsg)
-			conn.ws.Close()
+			conn.close()
 			return errors.New(errMsg)
 		}
 		column := fmt.Sprintf("A%d_count", message.Vote)

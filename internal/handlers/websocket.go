@@ -64,6 +64,10 @@ func (conn *websocketConnection) close() error {
 	} else {
 		logger.Info(fmt.Sprintf("Closed connection %d", conn.connectionID))
 	}
+	regFlowData, ok := conn.stateFlow.(registrationFlowData)
+	if ok {
+		delete(conn.handler.registrationPins, regFlowData.pin)
+	}
 	return nil
 }
 
@@ -113,7 +117,6 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		logger.Err(err)
 		return
 	}
-	defer ws.Close()
 	ctx := context.Background()
 
 	conn := websocketConnection{
@@ -125,6 +128,7 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 	}
 	h.addConnection(&conn)
 	conn.startHeartbeatMonitor()
+	defer conn.close()
 	logger.Info(fmt.Sprintf("New connection %d", conn.connectionID))
 
 	for {
