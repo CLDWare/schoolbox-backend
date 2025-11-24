@@ -23,9 +23,9 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 				age := time.Since(conn.latestMessage)
 				heartbeat_age := time.Since(conn.latestHeartbeat)
 				if age >= conn.handler.config.Heartbeat.KillDelay {
-					errCode := uint(1)
+					errCode := 1
 					errMsg := "Hearbeat missed"
-					sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+					sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // heartbeat missed
 					conn.close()
 					logger.Info(fmt.Sprintf(
 						"Disconnected %d, heartbeat missed. %.2f%% response rate (%d/%d)",

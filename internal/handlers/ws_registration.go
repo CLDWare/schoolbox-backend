@@ -42,9 +42,9 @@ func generateSecureToken(n int) (string, error) {
 func registrationFlow(conn *websocketConnection, message websocketMessage) error {
 	if message.Command == "reg_start" {
 		if conn.state != 0 {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Can not start registration in current state %d, only state 0 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 		conn.state = 1

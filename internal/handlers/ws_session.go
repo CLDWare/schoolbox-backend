@@ -31,25 +31,33 @@ type sessionVoteMessage struct {
 	Vote    uint
 }
 
-func toSessionVoteMessage(m websocketMessage) (sessionVoteMessage, error) {
+func toSessionVoteMessage(m websocketMessage) (sessionVoteMessage, *websocketErrorMessage) {
 	if m.Command != "session_vote" {
-		return sessionVoteMessage{}, fmt.Errorf("sessionVoteMessage should have command 'session_vote', not '%s'", m.Command)
+		errCode := -1
+		errMsg := fmt.Sprintf("sessionVoteMessage should have command 'session_vote', not '%s'", m.Command)
+		return sessionVoteMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // internal server error
 	}
 	vote, ok := m.Data["vote"]
 	if !ok {
-		return sessionVoteMessage{}, errors.New("No data field 'vote'")
+		errCode := 0
+		errMsg := "No data field 'vote'"
+		return sessionVoteMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 	}
 
 	switch v := vote.(type) {
 	case float64:
 		// JSON numbers are float64 by default
 		if v < 1 || v > 5 || v != math.Trunc(v) {
-			return sessionVoteMessage{}, errors.New("Invalid vote: must be a non-negative integer between 1 and 5 (inclusive)")
+			errCode := 0
+			errMsg := "Invalid vote: must be a non-negative integer between 1 and 5 (inclusive)"
+			return sessionVoteMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 		}
 
 		return sessionVoteMessage{Command: "session_vote", Vote: uint(v)}, nil
 	default:
-		return sessionVoteMessage{}, fmt.Errorf("Invalid vote: unsupported type %T", vote)
+		errCode := 0
+		errMsg := fmt.Sprintf("Invalid vote: unsupported type %T", vote)
+		return sessionVoteMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 	}
 }
 
@@ -57,25 +65,23 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 	switch message.Command {
 	case "session_vote":
 		if conn.state != 4 {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Can not vote while not in session. current state %d, only state 4 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 
-		message, err := toSessionVoteMessage(message)
-		if err != nil {
-			errCode := uint(0)
-			errMsg := err.Error()
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+		message, parseErr := toSessionVoteMessage(message)
+		if parseErr != nil {
+			sendMessage(conn.ws, parseErr)
 			return nil
 		}
 
 		flowData, ok := conn.stateFlow.(sessionFlowData)
 		if !ok {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not sessionFlowData", conn.stateFlow)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			logger.Err(errMsg)
 			conn.close()
 			return errors.New(errMsg)

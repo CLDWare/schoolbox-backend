@@ -77,7 +77,7 @@ type websocketMessage struct {
 }
 
 type websocketErrorMessage struct {
-	ErrorCode uint    `json:"e,omitempty"`
+	ErrorCode int     `json:"e,omitempty"`
 	Info      *string `json:"info,omitempty"`
 }
 
@@ -147,9 +147,9 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		err = json.Unmarshal(msg, &message)
 		if err != nil {
 			logger.Err("Invalid JSON:", err)
-			errCode := uint(0)
+			errCode := 0
 			errMsg := err.Error()
-			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // bad request
 			if sendErr != nil {
 				break
 			}
@@ -159,9 +159,9 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 		logger.Info(fmt.Sprintf("Received: %s", msg))
 
 		if message.Command == "" {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := "A command ('c') is required"
-			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // bad request
 			if sendErr != nil {
 				break
 			}
@@ -185,9 +185,9 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 				break
 			}
 		} else {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Invalid command '%s'", message.Command)
-			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendErr := sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // bad request
 			if sendErr != nil {
 				break
 			}

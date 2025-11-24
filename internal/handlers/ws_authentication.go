@@ -38,24 +38,32 @@ type websocketAuthStartMessage struct {
 	TargetID uint
 }
 
-func toWebsocketAuthStartMessage(m websocketMessage) (websocketAuthStartMessage, error) {
+func toWebsocketAuthStartMessage(m websocketMessage) (websocketAuthStartMessage, *websocketErrorMessage) {
 	if m.Command != "auth_start" {
-		return websocketAuthStartMessage{}, fmt.Errorf("websocketMessage should have command 'auth_start', not '%s'", m.Command)
+		errCode := -1
+		errMsg := fmt.Sprintf("websocketMessage should have command 'auth_start', not '%s'", m.Command)
+		return websocketAuthStartMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // internal server error
 	}
 	id, ok := m.Data["id"]
 	if !ok {
-		return websocketAuthStartMessage{}, errors.New("No data field 'id'")
+		errCode := 0
+		errMsg := "No data field 'id'"
+		return websocketAuthStartMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 	}
 
 	switch v := id.(type) {
 	case float64:
 		// JSON numbers are float64 by default
 		if v < 0 || v != math.Trunc(v) {
-			return websocketAuthStartMessage{}, errors.New("invalid id: must be a non-negative integer")
+			errCode := 0
+			errMsg := "invalid id: must be a non-negative integer"
+			return websocketAuthStartMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 		}
 		return websocketAuthStartMessage{Command: "auth_start", TargetID: uint(v)}, nil
 	default:
-		return websocketAuthStartMessage{}, fmt.Errorf("invalid id: unsupported type %T", id)
+		errCode := 0
+		errMsg := fmt.Sprintf("invalid id: unsupported type %T", id)
+		return websocketAuthStartMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 	}
 }
 
@@ -64,20 +72,26 @@ type websocketAuthValidateMessage struct {
 	Signature string
 }
 
-func toWebsocketAuthValidateMessage(m websocketMessage) (websocketAuthValidateMessage, error) {
+func toWebsocketAuthValidateMessage(m websocketMessage) (websocketAuthValidateMessage, *websocketErrorMessage) {
 	if m.Command != "auth_validate" {
-		return websocketAuthValidateMessage{}, fmt.Errorf("websocketMessage should have command 'auth_validate', not '%s'", m.Command)
+		errCode := -1
+		errMsg := fmt.Sprintf("websocketMessage should have command 'auth_validate', not '%s'", m.Command)
+		return websocketAuthValidateMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // internal server error
 	}
 	id, ok := m.Data["signature"]
 	if !ok {
-		return websocketAuthValidateMessage{}, errors.New("No data field 'signature'")
+		errCode := 0
+		errMsg := "No data field 'signature'"
+		return websocketAuthValidateMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 	}
 
 	switch v := id.(type) {
 	case string:
 		return websocketAuthValidateMessage{Command: "auth_validate", Signature: v}, nil
 	default:
-		return websocketAuthValidateMessage{}, fmt.Errorf("invalid signature: unsupported type %T", id)
+		errCode := 0
+		errMsg := fmt.Sprintf("invalid signature: unsupported type %T", id)
+		return websocketAuthValidateMessage{}, &websocketErrorMessage{ErrorCode: errCode, Info: &errMsg} // bad request
 	}
 }
 
@@ -99,23 +113,33 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 	switch message.Command {
 	case "auth_start":
 		if conn.state != 0 {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Can not start authentication in current state %d, only state 0 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 
-		message, err := toWebsocketAuthStartMessage(message)
-		if err != nil {
-			errCode := uint(0)
-			errMsg := err.Error()
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+		message, parseErr := toWebsocketAuthStartMessage(message)
+		if parseErr != nil {
+			sendMessage(conn.ws, parseErr)
 			return nil
 		}
+		ctx := context.Background()
 
 		conn.state = 2
 
 		id := message.TargetID
+		_, err := gorm.G[db.Device](conn.db).Where("id = ?", id).First(ctx)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+
+		}
+		if err != nil {
+			errCode := 0
+			errMsg := err.Error()
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			return nil
+		}
+
 		nonce, err := generateNonce()
 		if err != nil {
 
@@ -136,24 +160,22 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		sendMessage(conn.ws, websocketMessage{Command: command, Data: data})
 	case "auth_validate":
 		if conn.state != 2 {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Can not validate authentication in current state %d, only state 2 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
-		message, err := toWebsocketAuthValidateMessage(message)
-		if err != nil {
-			errCode := uint(0)
-			errMsg := err.Error()
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+		message, parseErr := toWebsocketAuthValidateMessage(message)
+		if parseErr != nil {
+			sendMessage(conn.ws, parseErr)
 			return nil
 		}
 
 		flowData, ok := conn.stateFlow.(authenticationFlowData)
 		if !ok {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not authenticationFlowData", conn.stateFlow)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			logger.Err(errMsg)
 			conn.close()
 			return errors.New(errMsg)
@@ -163,9 +185,9 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		device, err := gorm.G[db.Device](conn.db).Where("id = ?", flowData.targetID).First(ctx)
 		if err != nil {
-			errCode := uint(0)
+			errCode := 0
 			errMsg := fmt.Sprintf("Could not retrieve device %d from database", flowData.targetID)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			conn.state = 0
 			conn.stateFlow = nil
 			return nil
@@ -173,9 +195,9 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		decodedSignature, err := hex.DecodeString(message.Signature)
 		if err != nil {
-			errCode := uint(3)
+			errCode := 3
 			errMsg := "Invalid signature encoding."
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid auth data
 			conn.state = 0
 			conn.stateFlow = nil
 			return nil
@@ -185,9 +207,9 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		mac.Write([]byte(flowData.nonce))
 		expectedMAC := mac.Sum(nil)
 		if !hmac.Equal(decodedSignature, expectedMAC) {
-			errCode := uint(3)
+			errCode := 3
 			errMsg := "Invalid signature."
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid auth data
 			conn.state = 0
 			conn.stateFlow = nil
 
@@ -208,9 +230,9 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		// Kick old device
 		if conn.handler.connectedDevices[*conn.deviceID] != 0 {
 			oldConn := conn.handler.connections[conn.handler.connectedDevices[*conn.deviceID]]
-			errCode := uint(4)
+			errCode := 4
 			errMsg := "Logged in at other place. Only one connection allowed per device."
-			sendMessage(oldConn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg})
+			sendMessage(oldConn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // multiple logins
 			oldConn.close()
 		}
 
