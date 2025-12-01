@@ -79,7 +79,7 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 
 		flowData, ok := conn.stateFlow.(sessionFlowData)
 		if !ok {
-			errCode := 0
+			errCode := -1
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not sessionFlowData", conn.stateFlow)
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			logger.Err(errMsg)

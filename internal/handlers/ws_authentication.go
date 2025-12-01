@@ -134,7 +134,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		}
 		if err != nil {
-			errCode := 0
+			errCode := -1
 			errMsg := err.Error()
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			return nil
@@ -173,7 +173,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		flowData, ok := conn.stateFlow.(authenticationFlowData)
 		if !ok {
-			errCode := 0
+			errCode := -1
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not authenticationFlowData", conn.stateFlow)
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			logger.Err(errMsg)
@@ -185,7 +185,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		device, err := gorm.G[db.Device](conn.db).Where("id = ?", flowData.targetID).First(ctx)
 		if err != nil {
-			errCode := 0
+			errCode := -1
 			errMsg := fmt.Sprintf("Could not retrieve device %d from database", flowData.targetID)
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			conn.state = 0
