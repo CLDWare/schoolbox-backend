@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -23,6 +24,9 @@ type Config struct {
 
 	// Websocket heartbeat configuration
 	Heartbeat WebsocketHearbeatConfig `json:"heartbeat"`
+
+	// Google OAuth configuration
+	OAuth OAuthConfig `json:"google_oauth"`
 }
 
 // ServerConfig holds server-specific configuration
@@ -53,6 +57,12 @@ type WebsocketHearbeatConfig struct {
 	Delay         time.Duration `json:"delay"`          // Time after last message before triggering first heartbeat
 	Interval      time.Duration `json:"interval"`       // Time between heartbeats
 	KillDelay     time.Duration `json:"kill_delay"`     // Time after last message before killing connection
+}
+
+type OAuthConfig struct {
+	ClientId        string        `json:"client_id"`
+	ClientSecret    string        // ENV only or something idk
+	SessionDuration time.Duration `json:"session_duration"` // for how long is an authenticated session valid
 }
 
 var (
@@ -108,6 +118,11 @@ func loadConfig() *Config {
 			Interval:      getEnvAsDuration("HEARTBEAT_INTERVAL", 10*time.Second),
 			KillDelay:     getEnvAsDuration("HEARTBEAT_KILL_DELAY", 60*time.Second),
 		},
+		OAuth: OAuthConfig{ // well actually we need these
+			ClientId:        getEnv("GOOGLE_CLIENT_ID", "123456789012-abcdefg1234567890hijklmnop.apps.googleusercontent.com"),
+			ClientSecret:    getEnv("GOOGLE_CLIENT_SECRET", ""),
+			SessionDuration: getEnvAsDuration("AUTH_SESSION_DURATION", 24*time.Hour),
+		},
 	}
 
 	// Validate configuration
@@ -137,6 +152,19 @@ func (c *Config) validate() error {
 	if !slices.Contains(validLevels, strings.ToLower(c.Logging.Level)) {
 		return fmt.Errorf("invalid log level: %s (must be one of: %s)",
 			c.Logging.Level, strings.Join(validLevels, ", "))
+	}
+
+	// Validate OAuth info
+	if ok, err := regexp.Match(`^\d{12}-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$`, []byte(c.OAuth.ClientId)); !ok || err != nil {
+		if err != nil {
+			return fmt.Errorf("invalid GOOGLE_CLIENT_ID: %s. %s", c.OAuth.ClientId, err.Error())
+		}
+		return fmt.Errorf("invalid GOOGLE_CLIENT_ID: %s", c.OAuth.ClientId)
+	}
+	if c.OAuth.ClientSecret != "" {
+		if ok, err := regexp.Match(`^GOCSPX-[A-Za-z0-9_-]+$`, []byte(c.OAuth.ClientSecret)); !ok || err != nil {
+			return fmt.Errorf("invalid GOOGLE_CLIENT_SECRET: %s", c.OAuth.ClientSecret)
+		}
 	}
 
 	return nil

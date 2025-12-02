@@ -24,14 +24,26 @@ type Device struct {
 type User struct {
 	gorm.Model
 	Email           string `gorm:"unique"`
+	GoogleSubject   string `gorm:"unique"` // "sub" field from the OAuth response, should be unique
 	Name            string
-	Role            uint
+	DisplayName     string
+	Role            uint   // 0: default user, 1: admin
 	DefaultQuestion string `gorm:"default:'Wat vond je van de les?'"`
+}
+
+type AuthSession struct {
+	gorm.Model
+	SessionToken string
+	ExpiresAt    time.Time
+	UserID       uint
+	User         User `gorm:"foreignKey:UserID;references:ID"`
 }
 
 type Question struct {
 	gorm.Model
 	Question string `gorm:"unique;default:'Wat vond je van de les?'"`
+	UserID   uint   // Who owns this question
+	User     User   `gorm:"foreignKey:UserID;references:ID"`
 }
 
 type Session struct {

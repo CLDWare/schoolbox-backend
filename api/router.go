@@ -13,9 +13,12 @@ import (
 
 // API holds the API dependencies
 type API struct {
-	versionHandler      *handlers.VersionHandler
-	websocketHandler    *handlers.WebsocketHandler
-	registrationHandler *handlers.RegistrationHandler
+	database              *gorm.DB
+	versionHandler        *handlers.VersionHandler
+	websocketHandler      *handlers.WebsocketHandler
+	registrationHandler   *handlers.RegistrationHandler
+	authenticationHandler *handlers.AuthenticationHandler
+	UserHandler           *handlers.UserHandler
 }
 
 // NewAPI creates a new API instance
@@ -23,9 +26,12 @@ func NewAPI(db *gorm.DB) *API {
 	cfg := config.Get()
 	websocketHandler := handlers.NewWebsocketHandler(cfg, db)
 	return &API{
-		versionHandler:      handlers.NewVersionHandler(cfg),
-		websocketHandler:    websocketHandler,
-		registrationHandler: handlers.NewRegistrationHandler(cfg, websocketHandler),
+		database:              db,
+		versionHandler:        handlers.NewVersionHandler(cfg),
+		websocketHandler:      websocketHandler,
+		registrationHandler:   handlers.NewRegistrationHandler(cfg, websocketHandler),
+		authenticationHandler: handlers.NewAuthenticationHandler(cfg, db),
+		UserHandler:           handlers.NewUserHandler(cfg, db),
 	}
 }
 
@@ -40,10 +46,20 @@ func (api *API) CreateMux() *http.ServeMux {
 func (api *API) setupRoutes(mux *http.ServeMux) {
 	// Version route
 	mux.HandleFunc("/v", api.versionHandler.GetVersion)
+
 	// Websocket connection
 	mux.HandleFunc("/ws", api.websocketHandler.InitialiseWebsocket)
-	//
-	mux.HandleFunc("/registration_pin", api.registrationHandler.PostRegistrationPin)
+
+	// Frontend authentication
+	mux.HandleFunc("/login", api.authenticationHandler.GetLogin)                  // redirect to google OAuth consent
+	mux.HandleFunc("/oauth2callback", api.authenticationHandler.GetOAuthCallback) // google OAuth consent callback
+
+	// user api
+	auth := middleware.AuthenticationMiddleware{
+		DB: api.database,
+	}
+	mux.HandleFunc("/me", auth.Required(api.UserHandler.GetMe))
+	mux.HandleFunc("/registration_pin", auth.Required(api.registrationHandler.PostRegistrationPin))
 
 	// fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)

@@ -15,6 +15,6 @@ func InitialiseDatabase() (*gorm.DB, error) {
 
 	// ctx := context.Background()
 
-	db.AutoMigrate(&Device{}, &User{}, &Question{}, &Session{})
+	db.AutoMigrate(&Device{}, &User{}, &AuthSession{}, &Question{}, &Session{})
 	return db, nil
 }
