@@ -19,6 +19,7 @@ type API struct {
 	registrationHandler   *handlers.RegistrationHandler
 	authenticationHandler *handlers.AuthenticationHandler
 	UserHandler           *handlers.UserHandler
+	SessionHandler        *handlers.SessionHandler
 }
 
 // NewAPI creates a new API instance
@@ -32,6 +33,7 @@ func NewAPI(db *gorm.DB) *API {
 		registrationHandler:   handlers.NewRegistrationHandler(cfg, websocketHandler),
 		authenticationHandler: handlers.NewAuthenticationHandler(cfg, db),
 		UserHandler:           handlers.NewUserHandler(cfg, db),
+		SessionHandler:        handlers.NewSessionHandler(cfg, db),
 	}
 }
 
@@ -61,6 +63,9 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/me", auth.Required(api.UserHandler.GetMe))
 	mux.HandleFunc("/user", auth.RequiresAdmin(api.UserHandler.GetUser))
 	mux.HandleFunc("/user/{id}", auth.RequiresAdmin(api.UserHandler.GetUserById))
+
+	mux.HandleFunc("/session", auth.Required(api.SessionHandler.GetSession))
+	mux.HandleFunc("/session/{id}", auth.Required(api.SessionHandler.GetSessionById))
 
 	mux.HandleFunc("/registration_pin", auth.Required(api.registrationHandler.PostRegistrationPin))
 
