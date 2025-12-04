@@ -59,6 +59,9 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 		DB: api.database,
 	}
 	mux.HandleFunc("/me", auth.Required(api.UserHandler.GetMe))
+	mux.HandleFunc("/user", auth.RequiresAdmin(api.UserHandler.GetUser))
+	mux.HandleFunc("/user/{id}", auth.RequiresAdmin(api.UserHandler.GetUserById))
+
 	mux.HandleFunc("/registration_pin", auth.Required(api.registrationHandler.PostRegistrationPin))
 
 	// fallback route - must be last because it matches all routes.
