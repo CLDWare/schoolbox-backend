@@ -38,13 +38,13 @@ func (mw AuthenticationMiddleware) Required(next func(w http.ResponseWriter, r *
 		}
 
 		if time.Now().After(session.ExpiresAt) {
-			gecho.Unauthorized(w).WithMessage("Session expired").Send()
+			gecho.Unauthorized(w).WithMessage("Invalid or expired session").Send()
 			return
 		}
 
 		user, err := gorm.G[models.User](mw.DB).Where("id = ?", session.UserID).First(ctx)
 		if err == gorm.ErrRecordNotFound {
-			gecho.Unauthorized(w).WithMessage("Invalid session").Send()
+			gecho.Unauthorized(w).WithMessage("Invalid or expired session").Send()
 			return
 		} else if err != nil {
 			gecho.InternalServerError(w).Send()
