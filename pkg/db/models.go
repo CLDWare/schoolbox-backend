@@ -13,12 +13,10 @@ type Device struct {
 	LastSeen         *time.Time
 	Token            string
 	Room             *string `gorm:"unique"`
-	ActiveQuestionID uint
-	ActiveQuestion   Question `gorm:"foreignKey:ActiveQuestionID;references:ID"`
 	// Device lease
-	LeaseStart   time.Time
-	ActiveUserID *uint
-	ActiveUser   *User `gorm:"foreignKey:ActiveUserID;references:ID"`
+	LeaseStart      time.Time
+	ActiveSessionID *uint
+	ActiveSession   *Session `gorm:"foreignKey:ActiveSessionID;references:ID"`
 }
 
 type User struct {
