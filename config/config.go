@@ -27,6 +27,9 @@ type Config struct {
 
 	// Google OAuth configuration
 	OAuth OAuthConfig `json:"google_oauth"`
+
+	// Janitor configuration
+	Janitor JanitorConfig `json:"janitor"`
 }
 
 // ServerConfig holds server-specific configuration
@@ -63,6 +66,12 @@ type OAuthConfig struct {
 	ClientId        string        `json:"client_id"`
 	ClientSecret    string        // ENV only or something idk
 	SessionDuration time.Duration `json:"session_duration"` // for how long is an authenticated session valid
+}
+
+// JanitorConfig holds janitor-specific configuration
+type JanitorConfig struct {
+	ShortCleanInterval time.Duration `json:"short_clean_interval"`
+	FullCleanInterval  time.Duration `json:"full_clean_interval"`
 }
 
 var (
@@ -122,6 +131,10 @@ func loadConfig() *Config {
 			ClientId:        getEnv("GOOGLE_CLIENT_ID", "123456789012-abcdefg1234567890hijklmnop.apps.googleusercontent.com"),
 			ClientSecret:    getEnv("GOOGLE_CLIENT_SECRET", ""),
 			SessionDuration: getEnvAsDuration("AUTH_SESSION_DURATION", 24*time.Hour),
+		},
+		Janitor: JanitorConfig{
+			ShortCleanInterval: getEnvAsDuration("JANITOR_SHORT_CLEAN_INTERVAL", 1*time.Hour),
+			FullCleanInterval:  getEnvAsDuration("JANITOR_FULL_CLEAN_INTERVAL", 24*time.Hour),
 		},
 	}
 

@@ -8,6 +8,10 @@ build:
 run:
 	go run cmd/server/main.go
 
+# Run the janitor sepperatly
+janitor:
+	go run cmd/janitor/main.go
+
 # Run the simple main.go
 run-simple:
 	go run main.go
