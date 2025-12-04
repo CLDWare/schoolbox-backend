@@ -57,3 +57,19 @@ func (mw AuthenticationMiddleware) Required(next func(w http.ResponseWriter, r *
 		next(w, r.WithContext(ctx))
 	}
 }
+
+func (mw AuthenticationMiddleware) RequiresAdmin(next func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return mw.Required(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		user, ok := ctx.Value(contextkeys.AuthUserKey).(models.User)
+		if !ok {
+			gecho.InternalServerError(w).Send()
+			return
+		}
+		if user.Role != 1 {
+			gecho.Forbidden(w).Send()
+			return
+		}
+		next(w, r)
+	})
+}
