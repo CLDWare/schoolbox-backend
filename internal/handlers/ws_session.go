@@ -13,7 +13,7 @@ import (
 )
 
 func triggersSessionFlow(message *websocketMessage) bool {
-	for _, value := range [2]string{"session_vote"} {
+	for _, value := range [1]string{"session_vote"} {
 		if value == message.Command {
 			return true
 		}
@@ -64,12 +64,15 @@ func toSessionVoteMessage(m websocketMessage) (sessionVoteMessage, *websocketErr
 func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 	switch message.Command {
 	case "session_vote":
+		conn.mu.RLock()
 		if conn.state != 4 {
+			conn.mu.RUnlock()
 			errCode := 0
 			errMsg := fmt.Sprintf("Can not vote while not in session. current state %d, only state 4 is allowed", conn.state)
 			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
+		conn.mu.RUnlock()
 
 		message, parseErr := toSessionVoteMessage(message)
 		if parseErr != nil {
@@ -119,14 +122,19 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 		return nil, err
 	}
 
+	h.mu.RLock()
 	connID, ok := h.connectedDevices[deviceID]
 	if !ok {
+		h.mu.RUnlock()
 		return nil, ErrDeviceNotConnected
 	}
 	conn, ok := h.connections[connID]
+	h.mu.RUnlock()
 	if !ok {
 		err := fmt.Errorf("Connection %d for device %d does not exist", connID, deviceID)
+		h.mu.Lock()
 		delete(h.connectedDevices, deviceID) // remove device from connectedDevices map because the connection no longer exists
+		h.mu.Unlock()
 		return nil, err
 	}
 
@@ -143,8 +151,10 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	flowData := sessionFlowData{
 		sessionID: session.ID,
 	}
+	conn.mu.Lock()
 	conn.state = 4
 	conn.stateFlow = flowData
+	conn.mu.Unlock()
 
 	command := "session_start"
 	data := map[string]any{
@@ -159,19 +169,25 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 }
 
 func (h *WebsocketHandler) stopSession(session *models.Session) error {
+	h.mu.RLock()
 	connID, ok := h.connectedDevices[session.DeviceID]
 	if !ok {
 		return ErrDeviceNotConnected
 	}
 	conn, ok := h.connections[connID]
+	h.mu.RUnlock()
 	if !ok {
 		err := fmt.Errorf("Connection %d for device %d does not exist", connID, session.DeviceID)
+		h.mu.Lock()
 		delete(h.connectedDevices, session.DeviceID) // remove device from connectedDevices map because the connection no longer exists
+		h.mu.Unlock()
 		return err
 	}
 
+	conn.mu.Lock()
 	conn.state = 3
 	conn.stateFlow = nil
+	conn.mu.Unlock()
 
 	command := "session_stop"
 	sendMessage(conn.ws, websocketMessage{

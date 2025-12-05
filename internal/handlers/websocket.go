@@ -23,14 +23,18 @@ type WebsocketHandler struct {
 	nextID           uint
 	connectedDevices map[uint]uint
 	registrationPins map[uint]uint
-	mu               sync.Mutex
+	mu               sync.RWMutex
 }
 
 func (h *WebsocketHandler) addConnection(conn *websocketConnection) {
-	h.nextID = h.nextID + 1
+	conn.mu.Lock()
 	conn.handler = h
+	h.mu.Lock()
 	conn.connectionID = h.nextID
+	conn.mu.Unlock()
 	h.connections[h.nextID] = conn
+	h.nextID = h.nextID + 1
+	h.mu.Unlock()
 
 	conn.ws.SetCloseHandler(func(code int, text string) error {
 		return conn.close()
@@ -50,8 +54,8 @@ type websocketConnection struct {
 	hearbeat_cancel context.CancelFunc
 	latestHeartbeat time.Time
 	pingsSent       uint
-	pongsRecieved   uint
-	mu              sync.Mutex
+	pongsReceived   uint
+	mu              sync.RWMutex
 }
 
 func (conn *websocketConnection) close() error {
@@ -60,22 +64,18 @@ func (conn *websocketConnection) close() error {
 	}
 	conn.stopHeartbeatMonitor()
 
-	conn.mu.Lock()
+	conn.handler.mu.Lock()
+	defer conn.handler.mu.Unlock()
 	delete(conn.handler.connections, conn.connectionID)
-	conn.mu.Unlock()
 	if conn.deviceID != nil {
-		conn.mu.Lock()
 		delete(conn.handler.connectedDevices, *conn.deviceID)
-		conn.mu.Unlock()
 		logger.Info(fmt.Sprintf("Closed connection %d, device %d", conn.connectionID, *conn.deviceID))
 	} else {
 		logger.Info(fmt.Sprintf("Closed connection %d", conn.connectionID))
 	}
 	regFlowData, ok := conn.stateFlow.(registrationFlowData)
 	if ok {
-		conn.mu.Lock()
 		delete(conn.handler.registrationPins, regFlowData.pin)
-		conn.mu.Unlock()
 	}
 	return nil
 }
@@ -147,7 +147,9 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 			logger.Err("read:", err)
 			break
 		}
+		conn.mu.Lock()
 		conn.latestMessage = time.Now()
+		conn.mu.Unlock()
 		if conn.deviceID != nil {
 			gorm.G[models.Device](h.db).Where("id = ?", conn.deviceID).Update(ctx, "LastSeen", time.Now())
 		}
@@ -182,7 +184,9 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 			}
 		} else if message.Command == "pong" {
 			// Don't need to do anything, just here to prevent invalid command error
-			conn.pongsRecieved++
+			conn.mu.Lock()
+			conn.pongsReceived++
+			conn.mu.Unlock()
 		} else if triggersRegistrationFlow(&message) {
 			regErr := registrationFlow(&conn, message)
 			if regErr != nil {

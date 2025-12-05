@@ -20,8 +20,10 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				conn.mu.RLock()
 				age := time.Since(conn.latestMessage)
 				heartbeat_age := time.Since(conn.latestHeartbeat)
+				conn.mu.RUnlock()
 				if age >= conn.handler.config.Heartbeat.KillDelay {
 					errCode := 1
 					errMsg := "Hearbeat missed"
@@ -30,15 +32,17 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 					logger.Info(fmt.Sprintf(
 						"Disconnected %d, heartbeat missed. %.2f%% response rate (%d/%d)",
 						conn.connectionID,
-						float32(conn.pongsRecieved)/float32(conn.pingsSent)*100,
-						conn.pongsRecieved,
+						float32(conn.pongsReceived)/float32(conn.pingsSent)*100,
+						conn.pongsReceived,
 						conn.pingsSent,
 					))
 				} else if age >= conn.handler.config.Heartbeat.Delay && heartbeat_age >= conn.handler.config.Heartbeat.Interval {
 					command := "ping"
 					sendMessage(conn.ws, websocketMessage{Command: command})
+					conn.mu.Lock()
 					conn.pingsSent++
 					conn.latestHeartbeat = time.Now()
+					conn.mu.Unlock()
 					logger.Info(fmt.Sprintf("Send heartbeat to %d", conn.connectionID))
 				}
 			}
@@ -47,8 +51,12 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 }
 
 func (conn *websocketConnection) stopHeartbeatMonitor() {
-	if conn.hearbeat_cancel != nil {
-		conn.hearbeat_cancel()
-		conn.hearbeat_cancel = nil
+	conn.mu.Lock()
+	cancel_func := conn.hearbeat_cancel
+	conn.hearbeat_cancel = nil
+	conn.mu.Unlock()
+
+	if cancel_func != nil {
+		cancel_func()
 	}
 }
