@@ -228,6 +228,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		conn.deviceID = &flowData.targetID
 
 		// Kick old device
+		conn.handler.mu.Lock()
 		if conn.handler.connectedDevices[*conn.deviceID] != 0 {
 			oldConn := conn.handler.connections[conn.handler.connectedDevices[*conn.deviceID]]
 			errCode := 4
@@ -237,6 +238,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		}
 
 		conn.handler.connectedDevices[*conn.deviceID] = conn.connectionID
+		conn.handler.mu.Unlock()
 
 		sendMessage(conn.ws, websocketMessage{Command: "auth_ok"})
 		logger.Info(fmt.Sprintf("Device %d authenticated successfully", *conn.deviceID))

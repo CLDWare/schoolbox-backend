@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
@@ -22,6 +23,7 @@ type WebsocketHandler struct {
 	nextID           uint
 	connectedDevices map[uint]uint
 	registrationPins map[uint]uint
+	mu               sync.Mutex
 }
 
 func (h *WebsocketHandler) addConnection(conn *websocketConnection) {
@@ -49,6 +51,7 @@ type websocketConnection struct {
 	latestHeartbeat time.Time
 	pingsSent       uint
 	pongsRecieved   uint
+	mu              sync.Mutex
 }
 
 func (conn *websocketConnection) close() error {
@@ -57,16 +60,22 @@ func (conn *websocketConnection) close() error {
 	}
 	conn.stopHeartbeatMonitor()
 
+	conn.mu.Lock()
 	delete(conn.handler.connections, conn.connectionID)
+	conn.mu.Unlock()
 	if conn.deviceID != nil {
+		conn.mu.Lock()
 		delete(conn.handler.connectedDevices, *conn.deviceID)
+		conn.mu.Unlock()
 		logger.Info(fmt.Sprintf("Closed connection %d, device %d", conn.connectionID, *conn.deviceID))
 	} else {
 		logger.Info(fmt.Sprintf("Closed connection %d", conn.connectionID))
 	}
 	regFlowData, ok := conn.stateFlow.(registrationFlowData)
 	if ok {
+		conn.mu.Lock()
 		delete(conn.handler.registrationPins, regFlowData.pin)
+		conn.mu.Unlock()
 	}
 	return nil
 }

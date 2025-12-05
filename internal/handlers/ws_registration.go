@@ -51,7 +51,9 @@ func registrationFlow(conn *websocketConnection, message websocketMessage) error
 		pin := uint(rand.Intn(9000) + 1000)
 		conn.stateFlow = registrationFlowData{pin: pin}
 
+		conn.handler.mu.Lock()
 		conn.handler.registrationPins[pin] = conn.connectionID
+		conn.handler.mu.Unlock()
 
 		command := "reg_pin"
 		data := map[string]any{
