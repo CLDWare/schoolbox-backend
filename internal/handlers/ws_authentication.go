@@ -142,7 +142,10 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		nonce, err := generateNonce()
 		if err != nil {
-
+			errCode := -1
+			errMsg := err.Error()
+			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			return nil
 		}
 
 		conn.stateFlow = authenticationFlowData{
