@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	contextkeys "github.com/CLDWare/schoolbox-backend/internal/contextKeys"
@@ -15,16 +17,41 @@ import (
 
 // SessionHandler handles requests about sessions
 type SessionHandler struct {
-	config *config.Config
-	db     *gorm.DB
+	config           *config.Config
+	db               *gorm.DB
+	sessionMan       *SessionManager
+	websocketHandler *WebsocketHandler
 }
 
 // NewSessionHandler creates a new SessionHandler
-func NewSessionHandler(cfg *config.Config, db *gorm.DB) *SessionHandler {
+func NewSessionHandler(cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *SessionHandler {
 	return &SessionHandler{
-		config: cfg,
-		db:     db,
+		config:           cfg,
+		db:               db,
+		sessionMan:       NewSessionManager(),
+		websocketHandler: websocketHandler,
 	}
+}
+
+type SessionManager struct {
+	sessionsByUser   map[uint]*uint
+	sessionsByDevice map[uint]*uint
+}
+
+func NewSessionManager() *SessionManager {
+	return &SessionManager{
+		sessionsByUser:   make(map[uint]*uint),
+		sessionsByDevice: make(map[uint]*uint),
+	}
+}
+
+func (sm *SessionManager) addSession(session *models.Session) {
+	sm.sessionsByUser[session.UserID] = &session.ID
+	sm.sessionsByDevice[session.DeviceID] = &session.ID
+}
+func (sm *SessionManager) removeSession(session *models.Session) {
+	delete(sm.sessionsByUser, session.UserID)
+	delete(sm.sessionsByDevice, session.DeviceID)
 }
 
 func toSessionInfo(session models.Session) map[string]any {
@@ -140,6 +167,142 @@ func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(sessionInfoArray).Send()
 }
 
+type PostSessionBody struct {
+	DeviceID *uint   `json:"device_id"`
+	Question *string `json:"question"`
+}
+
+// handles POST /session requests
+// Any user can POST this endpoint to start a session (if they dont have an active one)
+func (h *SessionHandler) PostSession(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+	ctx := r.Context()
+	user, ok := ctx.Value(contextkeys.AuthUserKey).(models.User)
+	if !ok {
+		gecho.InternalServerError(w).Send()
+	}
+
+	if h.sessionMan.sessionsByUser[user.ID] != nil {
+		gecho.NewErr(w).WithStatus(http.StatusConflict).WithMessage("Can not have more than 1 session").Send()
+		return
+	}
+
+	var body PostSessionBody
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		errMsg := fmt.Sprintf("Error while decoding json: %E", err)
+		logger.Err(errMsg)
+		gecho.BadRequest(w).WithMessage(errMsg).Send()
+		return
+	}
+	if body.DeviceID == nil {
+		gecho.BadRequest(w).WithMessage("Missing field 'device_id'").Send()
+		return
+	}
+	if body.Question == nil {
+		gecho.BadRequest(w).WithMessage("Missing field 'question'").Send()
+		return
+	}
+
+	session, err := h.websocketHandler.startSession(user.ID, *body.DeviceID, *body.Question)
+	if err == ErrDeviceNotConnected {
+		gecho.ServiceUnavailable(w).WithMessage("Device currently unavailable").Send()
+		return
+	} else if err != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(err)
+		return
+	}
+
+	h.sessionMan.addSession(session)
+
+	sessionInfo := toSessionInfo(*session)
+
+	gecho.Success(w).WithData(sessionInfo).Send()
+}
+
+// handles POST /session/stop requests
+// Any user can POST this endpoint to stop their own session
+func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	ctx := r.Context()
+	user, ok := ctx.Value(contextkeys.AuthUserKey).(models.User)
+	if !ok {
+		gecho.InternalServerError(w).Send()
+	}
+
+	sessionID := h.sessionMan.sessionsByUser[user.ID]
+	if sessionID == nil {
+		gecho.NotFound(w).WithMessage("No current session").Send()
+		return
+	}
+
+	h.db.Model(&models.Session{}).
+		Where("id = ?", sessionID).
+		UpdateColumn("stopped_at", time.Now())
+
+	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx)
+	if err == gorm.ErrRecordNotFound {
+		gecho.InternalServerError(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
+		return
+	}
+	if err != nil {
+		logger.Err(err.Error())
+		gecho.InternalServerError(w).Send()
+		return
+	}
+
+	h.sessionMan.removeSession(&session)
+	h.websocketHandler.stopSession(&session)
+
+	sessionInfo := toSessionInfo(session)
+
+	gecho.Success(w).WithData(sessionInfo).Send()
+}
+
+// handles GET /session/current requests
+// Any user can query this endpoint for their own session
+func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	ctx := r.Context()
+	user, ok := ctx.Value(contextkeys.AuthUserKey).(models.User)
+	if !ok {
+		gecho.InternalServerError(w).Send()
+	}
+
+	sessionID := h.sessionMan.sessionsByUser[user.ID]
+	if sessionID == nil {
+		gecho.NotFound(w).WithMessage("No current session").Send()
+		return
+	}
+
+	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx)
+	if err == gorm.ErrRecordNotFound {
+		gecho.InternalServerError(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
+		return
+	}
+	if err != nil {
+		logger.Err(err.Error())
+		gecho.InternalServerError(w).Send()
+		return
+	}
+
+	sessionInfo := toSessionInfo(session)
+
+	gecho.Success(w).WithData(sessionInfo).Send()
+}
+
 // handles GET /session/{id} requests
 // Any user can query this endpoint for their own sessions
 // Privileged users can add asRole=1 query parameter to act with their privileges
@@ -178,7 +341,7 @@ func (h *SessionHandler) GetSessionById(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx) // retrieve sessions, sorted by date (newest first)
+	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx)
 	if err == gorm.ErrRecordNotFound {
 		gecho.NotFound(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
 		return

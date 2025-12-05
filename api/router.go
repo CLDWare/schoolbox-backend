@@ -33,7 +33,17 @@ func NewAPI(db *gorm.DB) *API {
 		registrationHandler:   handlers.NewRegistrationHandler(cfg, websocketHandler),
 		authenticationHandler: handlers.NewAuthenticationHandler(cfg, db),
 		UserHandler:           handlers.NewUserHandler(cfg, db),
-		SessionHandler:        handlers.NewSessionHandler(cfg, db),
+		SessionHandler:        handlers.NewSessionHandler(cfg, db, websocketHandler),
+	}
+}
+
+func NewMethodRouter(handlerFuncMap map[string]http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if handlerFuncMap[r.Method] != nil {
+			handlerFuncMap[r.Method](w, r)
+		} else {
+			gecho.MethodNotAllowed(w).Send()
+		}
 	}
 }
 
@@ -56,7 +66,7 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.authenticationHandler.GetLogin)                  // redirect to google OAuth consent
 	mux.HandleFunc("/oauth2callback", api.authenticationHandler.GetOAuthCallback) // google OAuth consent callback
 
-	// user api
+	// User api
 	auth := middleware.AuthenticationMiddleware{
 		DB: api.database,
 	}
@@ -64,12 +74,18 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/user", auth.RequiresAdmin(api.UserHandler.GetUser))
 	mux.HandleFunc("/user/{id}", auth.RequiresAdmin(api.UserHandler.GetUserById))
 
-	mux.HandleFunc("/session", auth.Required(api.SessionHandler.GetSession))
+	sessionRouter := NewMethodRouter(map[string]http.HandlerFunc{
+		http.MethodGet:  api.SessionHandler.GetSession,
+		http.MethodPost: api.SessionHandler.PostSession,
+	})
+	mux.HandleFunc("/session", auth.Required(sessionRouter))
+	mux.HandleFunc("/session/stop", auth.Required(api.SessionHandler.PostSessionStop))
+	mux.HandleFunc("/session/current", auth.Required(api.SessionHandler.GetCurrentSession))
 	mux.HandleFunc("/session/{id}", auth.Required(api.SessionHandler.GetSessionById))
 
-	mux.HandleFunc("/registration_pin", auth.Required(api.registrationHandler.PostRegistrationPin))
+	mux.HandleFunc("/registration_pin", auth.RequiresAdmin(api.registrationHandler.PostRegistrationPin))
 
-	// fallback route - must be last because it matches all routes.
+	// Fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)
 }
 

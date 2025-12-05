@@ -184,6 +184,11 @@ func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Re
 			if authErr != nil {
 				break
 			}
+		} else if triggersSessionFlow(&message) {
+			sessionErr := sessionFlow(&conn, message)
+			if sessionErr != nil {
+				break
+			}
 		} else {
 			errCode := 0
 			errMsg := fmt.Sprintf("Invalid command '%s'", message.Command)

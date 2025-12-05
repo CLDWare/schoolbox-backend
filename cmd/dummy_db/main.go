@@ -36,13 +36,16 @@ func main() {
 	question1 := models.Question{Question: "Wat vond je van de les?"}
 	err = gorm.G[models.Question](db).Create(ctx, &question1)
 
+	firstAnwserTime := time.Now().Add(-10 * time.Minute) // first question answered 10 minutes ago
+	lastAnwserTime := time.Now().Add(-5 * time.Minute)   // last question answered 5 minutes ago
+
 	session1 := models.Session{
 		UserID:          user1.ID,
 		QuestionID:      question1.ID,
 		DeviceID:        device1.ID,
 		Date:            time.Now().Add(-15 * time.Minute), // Session was started 15 minutes ago,
-		FirstAnwserTime: time.Now().Add(-10 * time.Minute), // first question answered 10 minutes ago
-		LastAnwserTime:  time.Now().Add(-5 * time.Minute),  // last question answered 5 minutes ago
+		FirstAnwserTime: &firstAnwserTime,
+		LastAnwserTime:  &lastAnwserTime,
 		A1_count:        0,
 		A2_count:        1,
 		A3_count:        7,

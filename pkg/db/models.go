@@ -53,8 +53,9 @@ type Session struct {
 	DeviceID        uint
 	Device          Device `gorm:"foreignKey:DeviceID;references:ID"`
 	Date            time.Time
-	FirstAnwserTime time.Time
-	LastAnwserTime  time.Time
+	FirstAnwserTime *time.Time
+	LastAnwserTime  *time.Time
+	StoppedAt       *time.Time
 	A1_count        uint16
 	A2_count        uint16
 	A3_count        uint16

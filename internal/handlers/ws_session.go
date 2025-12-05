@@ -86,9 +86,17 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 			conn.close()
 			return errors.New(errMsg)
 		}
+
 		column := fmt.Sprintf("A%d_count", message.Vote)
 		expr := gorm.Expr(fmt.Sprintf("%s + 1", column))
 		conn.handler.db.Model(&models.Session{}).Where("id = ?", flowData.sessionID).UpdateColumn(column, expr)
+		conn.handler.db.Model(&models.Session{}).
+			Where("id = ?", flowData.sessionID).
+			Where("first_anwser_time IS NULL").
+			UpdateColumn("first_anwser_time", time.Now())
+		conn.handler.db.Model(&models.Session{}).
+			Where("id = ?", flowData.sessionID).
+			UpdateColumn("last_anwser_time", time.Now())
 	default:
 		err := fmt.Errorf("Invalid command '%s' reached sessionFLow", message.Command)
 		logger.Err(err)
@@ -97,29 +105,27 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 	return nil
 }
 
-func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr string) (map[string]any, error) {
+var ErrDeviceNotConnected = errors.New("Device is currently connected, can not start session")
+
+func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr string) (*models.Session, error) {
 	ctx := context.Background()
 
 	question := models.Question{
 		Question: questionStr,
 	}
-	result := h.db.FirstOrCreate(ctx, &question)
+	result := h.db.FirstOrCreate(&question)
 	if result.Error != nil {
 		err := fmt.Errorf("An error occured retrieving/creating the question: %s", result.Error)
-		logger.Err(err)
 		return nil, err
 	}
 
 	connID, ok := h.connectedDevices[deviceID]
 	if !ok {
-		err := fmt.Errorf("No device %d is currently connected, can not start session", deviceID)
-		logger.Err(err)
-		return nil, err
+		return nil, ErrDeviceNotConnected
 	}
 	conn, ok := h.connections[connID]
 	if !ok {
 		err := fmt.Errorf("Connection %d for device %d does not exist", connID, deviceID)
-		logger.Err(err)
 		delete(h.connectedDevices, deviceID) // remove device from connectedDevices map because the connection no longer exists
 		return nil, err
 	}
@@ -132,7 +138,6 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	}
 	err := gorm.G[models.Session](h.db).Create(ctx, &session)
 	if err != nil {
-		logger.Err(err)
 		return nil, err
 	}
 	flowData := sessionFlowData{
@@ -150,5 +155,28 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 		Data:    data,
 	})
 
-	return nil, nil
+	return &session, nil
+}
+
+func (h *WebsocketHandler) stopSession(session *models.Session) error {
+	connID, ok := h.connectedDevices[session.DeviceID]
+	if !ok {
+		return ErrDeviceNotConnected
+	}
+	conn, ok := h.connections[connID]
+	if !ok {
+		err := fmt.Errorf("Connection %d for device %d does not exist", connID, session.DeviceID)
+		delete(h.connectedDevices, session.DeviceID) // remove device from connectedDevices map because the connection no longer exists
+		return err
+	}
+
+	conn.state = 3
+	conn.stateFlow = nil
+
+	command := "session_stop"
+	sendMessage(conn.ws, websocketMessage{
+		Command: command,
+	})
+
+	return nil
 }
