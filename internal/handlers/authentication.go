@@ -188,10 +188,11 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 	gorm.G[models.AuthSession](h.db).Create(ctx, &session)
 
 	cookie := http.Cookie{
-		Name:   "auth_session_token",
-		Value:  session.SessionToken,
-		Domain: h.config.Server.Host,
-		Path:   "/",
+		Name:     "auth_session_token",
+		Value:    session.SessionToken,
+		Domain:   h.config.Server.Host,
+		Path:     "/",
+		HttpOnly: true,
 	}
 	http.SetCookie(w, &cookie)
 	http.Redirect(w, r, "/me", http.StatusFound)
