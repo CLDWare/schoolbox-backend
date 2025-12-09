@@ -20,9 +20,8 @@ import (
 
 // RegistrationHandler handles registration-related requests
 type AuthenticationHandler struct {
-	config           *config.Config
-	db               *gorm.DB
-	websocketHandler *WebsocketHandler
+	config *config.Config
+	db     *gorm.DB
 }
 
 // NewRegistrationHandler creates a new registration handler
