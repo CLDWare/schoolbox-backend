@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
@@ -36,6 +37,7 @@ func NewSessionHandler(cfg *config.Config, db *gorm.DB, websocketHandler *Websoc
 type SessionManager struct {
 	sessionsByUser   map[uint]*uint
 	sessionsByDevice map[uint]*uint
+	mu               sync.RWMutex
 }
 
 func NewSessionManager() *SessionManager {
@@ -46,12 +48,16 @@ func NewSessionManager() *SessionManager {
 }
 
 func (sm *SessionManager) addSession(session *models.Session) {
+	sm.mu.Lock()
 	sm.sessionsByUser[session.UserID] = &session.ID
 	sm.sessionsByDevice[session.DeviceID] = &session.ID
+	sm.mu.Unlock()
 }
 func (sm *SessionManager) removeSession(session *models.Session) {
+	sm.mu.Lock()
 	delete(sm.sessionsByUser, session.UserID)
 	delete(sm.sessionsByDevice, session.DeviceID)
+	sm.mu.Unlock()
 }
 
 func toSessionInfo(session models.Session) map[string]any {
@@ -185,10 +191,13 @@ func (h *SessionHandler) PostSession(w http.ResponseWriter, r *http.Request) {
 		gecho.InternalServerError(w).Send()
 	}
 
+	h.sessionMan.mu.RLock()
 	if h.sessionMan.sessionsByUser[user.ID] != nil {
+		h.sessionMan.mu.RUnlock()
 		gecho.NewErr(w).WithStatus(http.StatusConflict).WithMessage("Can not have more than 1 session").Send()
 		return
 	}
+	h.sessionMan.mu.RUnlock()
 
 	var body PostSessionBody
 	err := json.NewDecoder(r.Body).Decode(&body)
@@ -238,7 +247,9 @@ func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request)
 		gecho.InternalServerError(w).Send()
 	}
 
+	h.sessionMan.mu.RLock()
 	sessionID := h.sessionMan.sessionsByUser[user.ID]
+	h.sessionMan.mu.RUnlock()
 	if sessionID == nil {
 		gecho.NotFound(w).WithMessage("No current session").Send()
 		return
@@ -281,7 +292,9 @@ func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Reques
 		gecho.InternalServerError(w).Send()
 	}
 
+	h.sessionMan.mu.RLock()
 	sessionID := h.sessionMan.sessionsByUser[user.ID]
+	h.sessionMan.mu.RUnlock()
 	if sessionID == nil {
 		gecho.NotFound(w).WithMessage("No current session").Send()
 		return
