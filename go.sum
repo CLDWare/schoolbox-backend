@@ -4,8 +4,8 @@ cloud.google.com/go/auth/oauth2adapt v0.2.8 h1:keo8NaayQZ6wimpNSmW5OPc283g65QNIi
 cloud.google.com/go/auth/oauth2adapt v0.2.8/go.mod h1:XQ9y31RkqZCcwJWNSx2Xvric3RrU88hAYYbjDWYDL+c=
 cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdBtwLoEkH9Zs=
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
-github.com/MonkyMars/gecho v0.3.0 h1:FlTEL/t0TE2Vj0cBtLUAvjSAiZt1OcKIG9YSe14LP6M=
-github.com/MonkyMars/gecho v0.3.0/go.mod h1:y43H50XrbyyGxLL4X+Uu+oNSvWNGZg/1fG85jkczW/8=
+github.com/MonkyMars/gecho v0.4.6 h1:z5dDD0BTS9wDqFPvvZl97yNBWSjEt326vyw0vl9g6QQ=
+github.com/MonkyMars/gecho v0.4.6/go.mod h1:y43H50XrbyyGxLL4X+Uu+oNSvWNGZg/1fG85jkczW/8=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=

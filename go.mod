@@ -38,4 +38,4 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-require github.com/MonkyMars/gecho v0.3.0 // direct
+require github.com/MonkyMars/gecho v0.4.6 // direct
