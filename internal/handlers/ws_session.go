@@ -156,6 +156,16 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	conn.stateFlow = flowData
 	conn.mu.Unlock()
 
+	device, err := gorm.G[models.Device](h.db).Where("id = ?", deviceID).First(ctx)
+	if err != nil {
+		return nil, err
+	}
+	device.ActiveSessionID = &session.ID
+	_, err = gorm.G[models.Device](h.db).Updates(ctx, device)
+	if err != nil {
+		return nil, err
+	}
+
 	command := "session_start"
 	data := map[string]any{
 		"text": question.Question,
