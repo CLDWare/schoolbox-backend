@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -47,18 +48,18 @@ func Init() {
 
 func Info(v ...any) {
 	if currentLevel <= logLevels["info"] {
-		InfoLogger.Println(v...)
+		InfoLogger.Output(2, fmt.Sprintln(v...))
 	}
 }
 
 func Warn(v ...any) {
 	if currentLevel <= logLevels["warn"] {
-		WarningLogger.Println(v...)
+		WarningLogger.Output(2, fmt.Sprintln(v...))
 	}
 }
 
 func Err(v ...any) {
 	if currentLevel <= logLevels["error"] {
-		ErrorLogger.Println(v...)
+		ErrorLogger.Output(2, fmt.Sprintln(v...))
 	}
 }
