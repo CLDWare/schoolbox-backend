@@ -245,7 +245,9 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		conn.state = 3
 		conn.stateFlow = nil
 		conn.deviceID = &flowData.targetID
+		conn.mu.Unlock()
 
+		conn.handler.mu.Lock()
 		// Kick old device
 		if conn.handler.connectedDevices[*conn.deviceID] != 0 {
 			oldConn := conn.handler.connections[conn.handler.connectedDevices[*conn.deviceID]]
