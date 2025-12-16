@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>device admin page</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        table th {
+            text-align: left;
+        }
+
+        .itemRow {
+            padding: 0px;
+            margin: 0px;
+        }
+    </style>
+</head>
+
+<body class="m-2 bg-neutral-950 text-white">
+    <a href="/api/login">login</a><br>
+    
+    <span id="userTableMeta"></span>
+    <table id="userTable" class="table-auto w-full bg-neutral-900 p-2 mb-3">
+        <thead class="border-solid border-gray-300 border-b-2">
+            <th>User</th>
+            <th>Role</th>
+            <th>Joined at</th>
+        </thead>
+    </table>
+
+    <span id="deviceTableMeta"></span>
+    <table id="deviceTable" class="table-auto w-full bg-neutral-900 p-1">
+        <thead class="border-solid border-gray-300 border-b-2">
+            <th>Device</th>
+            <th>Current session</th>
+            <th>Last seen at</th>
+        </thead>
+    </table>
+    <script type="module">
+        const API_URL = "/api";
+
+        const userTable = document.getElementById("userTable");
+        const userTableMeta = document.getElementById("userTableMeta");
+        const deviceTable = document.getElementById("deviceTable");
+        const deviceTableMeta = document.getElementById("deviceTableMeta");
+
+        (async function () {
+            const res = await fetch(API_URL + "/user", {
+                method: "GET"
+            });
+            let body = await res.json();
+            console.log(body);
+            let users = body.data
+            console.log(users);
+
+            const updated = new Date(body.timestamp)
+            const date = updated.toISOString().slice(0,10)
+            const time = updated.toISOString().slice(11,16)
+            const isToday = date == new Date().toISOString().slice(0,10)
+            userTableMeta.innerText = `${time} ${isToday ? "today" : date}`
+
+            for (let i = 0; i < users.length; i++) {
+                const user = users[i]
+                let row = document.createElement("tr")
+                row.classList.add("itemRow")
+
+                let nameData = document.createElement("td")
+
+                let usernameSpan = document.createElement("span")
+                usernameSpan.classList.add("font-semibold")
+                usernameSpan.innerText = user.display_name
+                nameData.appendChild(usernameSpan)
+
+                nameData.appendChild(document.createElement("br"))
+
+                let emailSpan = document.createElement("span")
+                emailSpan.innerText = user.email
+                nameData.appendChild(emailSpan)
+
+                row.appendChild(nameData)
+
+                let roleData = document.createElement("td")
+                roleData.innerText = user.role
+                row.appendChild(roleData)
+
+                let joinedAtData = document.createElement("td")
+                const joinedAt = new Date(user.joinedAt)
+                const formattedDate = joinedAt.toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                joinedAtData.innerText = formattedDate
+                row.appendChild(joinedAtData)
+
+                userTable.appendChild(row)
+            }
+        })();
+
+        
+        (async function () {
+            const res = await fetch(API_URL + "/device", {
+                method: "GET"
+            });
+            let body = await res.json();
+            console.log(body);
+            let devices = body.data
+            console.log(devices);
+
+            const updated = new Date(body.timestamp)
+            const date = updated.toISOString().slice(0,10)
+            const time = updated.toISOString().slice(11,16)
+            const isToday = date == new Date().toISOString().slice(0,10)
+            deviceTableMeta.innerText = `${time} ${isToday ? "today" : date}`
+
+            for (let i = 0; i < devices.length; i++) {
+                const device = devices[i]
+                let row = document.createElement("tr")
+                row.classList.add("itemRow")
+
+                let nameData = document.createElement("td")
+
+                let roomSpan = document.createElement("span")
+                roomSpan.classList.add("font-semibold")
+                if (device.room) {
+                    roomSpan.innerText = device.room
+                } else {
+                    roomSpan.innerText = "No room set"
+                    roomSpan.classList.add("italic")
+                }
+                nameData.appendChild(roomSpan)
+
+                nameData.appendChild(document.createElement("br"))
+
+                let idSpan = document.createElement("span")
+                idSpan.innerText = `Id:${device.id}`
+                nameData.appendChild(idSpan)
+
+                row.appendChild(nameData)
+                
+                let sessionIdData = document.createElement("td")
+                if (device.active_session_id) {
+                    sessionIdData.innerText = device.active_session_id
+                } else {
+                    sessionIdData.innerText = "none"
+                    sessionIdData.classList.add("italic","text-gray-100")
+                }
+                row.appendChild(sessionIdData)
+
+                let lastSeenData = document.createElement("td")
+                const lastSeen = new Date(device.last_seen)
+                const formattedDate = lastSeen.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                lastSeenData.innerText = formattedDate
+                row.appendChild(lastSeenData)
+
+                deviceTable.appendChild(row)
+            }
+        })();
+
+    </script>
+</body>
+
+</html>
