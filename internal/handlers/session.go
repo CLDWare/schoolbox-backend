@@ -158,7 +158,7 @@ func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var sessions []models.Session
-	err := dbQuery.Order("date DESC").Find(&sessions).Error // retrieve sessions, sorted by date (newest first)
+	err := dbQuery.Order("date DESC").Preload("Question").Find(&sessions).Error // retrieve sessions, sorted by date (newest first)
 	if err != nil {
 		logger.Err(err.Error())
 		gecho.InternalServerError(w).Send()
@@ -259,7 +259,7 @@ func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request)
 		Where("id = ?", sessionID).
 		UpdateColumn("stopped_at", time.Now())
 
-	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx)
+	session, err := gorm.G[models.Session](h.db).Preload("Question", nil).Where("id = ?", sessionID).First(ctx)
 	if err == gorm.ErrRecordNotFound {
 		gecho.InternalServerError(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
 		return
@@ -300,7 +300,7 @@ func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx)
+	session, err := gorm.G[models.Session](h.db).Preload("Question", nil).Where("id = ?", sessionID).First(ctx)
 	if err == gorm.ErrRecordNotFound {
 		gecho.InternalServerError(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
 		return
@@ -354,7 +354,7 @@ func (h *SessionHandler) GetSessionById(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	session, err := gorm.G[models.Session](h.db).Where("id = ?", sessionID).First(ctx)
+	session, err := gorm.G[models.Session](h.db).Preload("Question", nil).Where("id = ?", sessionID).First(ctx)
 	if err == gorm.ErrRecordNotFound {
 		gecho.NotFound(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
 		return
