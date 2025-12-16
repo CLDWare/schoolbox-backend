@@ -1,0 +1,149 @@
+package handlers
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+
+	"github.com/CLDWare/schoolbox-backend/config"
+	models "github.com/CLDWare/schoolbox-backend/pkg/db"
+	"github.com/CLDWare/schoolbox-backend/pkg/logger"
+	"github.com/MonkyMars/gecho"
+	"gorm.io/gorm"
+)
+
+// UserHandler handles requests about users
+type DeviceHandler struct {
+	config *config.Config
+	db     *gorm.DB
+}
+
+// NewDeviceHandler creates a new DeviceHandler
+func NewDeviceHandler(cfg *config.Config, db *gorm.DB) *DeviceHandler {
+	return &DeviceHandler{
+		config: cfg,
+		db:     db,
+	}
+}
+
+func toDeviceInfo(device models.Device) map[string]any {
+	return map[string]any{
+		"id":                device.ID,
+		"latest_login":      device.LatestLogin,
+		"last_seen":         device.LastSeen,
+		"room":              device.Room,
+		"lease_start":       device.LeaseStart,
+		"active_session_id": device.ActiveSessionID,
+		"registration_date": device.RegistrationDate,
+	}
+}
+
+// handles GET /device requests
+func (h *DeviceHandler) GetDevice(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	query := r.URL.Query()
+	dbQuery := h.db.Model(&models.Device{})
+
+	// return count filters
+	if limitStr := query.Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage(err.Error()).Send()
+			return
+		}
+		if limit > 20 {
+			limit = 20
+		}
+		dbQuery = dbQuery.Limit(limit)
+	} else {
+		dbQuery = dbQuery.Limit(20)
+	}
+	if offsetStr := query.Get("offset"); offsetStr != "" {
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage(err.Error()).Send()
+			return
+		}
+		dbQuery = dbQuery.Offset(offset)
+	}
+	// filters
+	if leasedStr := query.Get("leased"); leasedStr != "" {
+		leased, err := strconv.ParseBool(leasedStr)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage(err.Error()).Send()
+			return
+		}
+		if leased {
+			dbQuery = dbQuery.Where("active_session_id IS NOT NULL")
+		} else {
+			dbQuery = dbQuery.Where("active_session_id IS NULL")
+		}
+	}
+
+	var devices []models.Device
+	err := dbQuery.Find(&devices).Error
+	if err != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(err.Error())
+		return
+	}
+
+	deviceInfoArray := []map[string]any{}
+	for _, device := range devices {
+		deviceInfoArray = append(deviceInfoArray, toDeviceInfo(device))
+	}
+
+	gecho.Success(w).WithData(deviceInfoArray).Send()
+}
+
+// handles GET /device/{id} requests
+func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	query := r.URL.Query()
+	dbQuery := h.db.Model(&models.Device{})
+
+	idStr := r.PathValue("id")
+	idType := query.Get("type")
+	if idType == "" {
+		idType = "id"
+	}
+
+	switch idType {
+	case "id":
+		userID, err := strconv.ParseUint(idStr, 10, 0)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage("Invalid user ID, expected positive integer").Send()
+			return
+		}
+		dbQuery = dbQuery.Where("id = ?", userID)
+	case "room":
+		dbQuery = dbQuery.Where("room = ?", idStr)
+	default:
+		gecho.BadRequest(w).WithMessage(fmt.Sprintf("Invalid identifier type '%s'", idType)).Send()
+		return
+	}
+
+	var device models.Device
+	result := dbQuery.First(&device)
+	if result.Error == gorm.ErrRecordNotFound {
+		gecho.NotFound(w).WithMessage(fmt.Sprintf("No device with %s of '%s'", idType, idStr)).Send()
+		return
+	}
+	if result.Error != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(result.Error.Error())
+		return
+	}
+
+	deviceInfo := toDeviceInfo(device)
+
+	gecho.Success(w).WithData(deviceInfo).Send()
+}

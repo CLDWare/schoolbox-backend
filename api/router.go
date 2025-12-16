@@ -20,6 +20,7 @@ type API struct {
 	authenticationHandler *handlers.AuthenticationHandler
 	UserHandler           *handlers.UserHandler
 	SessionHandler        *handlers.SessionHandler
+	DeviceHandler         *handlers.DeviceHandler
 }
 
 // NewAPI creates a new API instance
@@ -34,6 +35,7 @@ func NewAPI(db *gorm.DB) *API {
 		authenticationHandler: handlers.NewAuthenticationHandler(cfg, db),
 		UserHandler:           handlers.NewUserHandler(cfg, db),
 		SessionHandler:        handlers.NewSessionHandler(cfg, db, websocketHandler),
+		DeviceHandler:         handlers.NewDeviceHandler(cfg, db),
 	}
 }
 
@@ -66,14 +68,19 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.authenticationHandler.GetLogin)                  // redirect to google OAuth consent
 	mux.HandleFunc("/oauth2callback", api.authenticationHandler.GetOAuthCallback) // google OAuth consent callback
 
-	// User api
 	auth := middleware.AuthenticationMiddleware{
 		DB: api.database,
 	}
+	// User api
 	mux.HandleFunc("/me", auth.Required(api.UserHandler.GetMe))
 	mux.HandleFunc("/user", auth.RequiresAdmin(api.UserHandler.GetUser))
 	mux.HandleFunc("/user/{id}", auth.RequiresAdmin(api.UserHandler.GetUserById))
 
+	// Device api
+	mux.HandleFunc("/device", auth.RequiresAdmin(api.DeviceHandler.GetDevice))
+	mux.HandleFunc("/device/{id}", auth.RequiresAdmin(api.DeviceHandler.GetDeviceById))
+
+	// Session api
 	sessionRouter := NewMethodRouter(map[string]http.HandlerFunc{
 		http.MethodGet:  api.SessionHandler.GetSession,
 		http.MethodPost: api.SessionHandler.PostSession,
