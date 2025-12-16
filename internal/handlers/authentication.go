@@ -66,7 +66,7 @@ func (h *AuthenticationHandler) GetLogin(w http.ResponseWriter, r *http.Request)
 
 	params := url.Values{}
 	params.Set("client_id", h.config.OAuth.ClientId)
-	redirectURI, err := url.JoinPath("http://"+h.config.GetServerAddress(), "/oauth2callback")
+	redirectURI, err := url.JoinPath("http://"+h.config.GetServerAddress(), "/api/oauth2callback")
 	if err != nil {
 		errMsg := fmt.Sprintf("Could not create login redirect uri: %s", err.Error())
 		logger.Err(errMsg)
@@ -94,7 +94,7 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 	data.Set("code", code)
 	data.Set("client_id", h.config.OAuth.ClientId)
 	data.Set("client_secret", h.config.OAuth.ClientSecret)
-	redirectURI, err := url.JoinPath("http://"+h.config.GetServerAddress(), "/oauth2callback")
+	redirectURI, err := url.JoinPath("http://"+h.config.GetServerAddress(), "/api/oauth2callback")
 	if err != nil {
 		errMsg := fmt.Sprintf("Could not create login redirect uri: %s", err.Error())
 		logger.Err(errMsg)
@@ -194,5 +194,5 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 		HttpOnly: true,
 	}
 	http.SetCookie(w, &cookie)
-	http.Redirect(w, r, "/me", http.StatusFound)
+	http.Redirect(w, r, "/", http.StatusFound)
 }

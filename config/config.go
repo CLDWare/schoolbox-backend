@@ -36,6 +36,8 @@ type Config struct {
 type ServerConfig struct {
 	Host         string        `json:"host"`
 	Port         string        `json:"port"`
+	ExternalHost string        `json:"external_host"`
+	ExternalPort string        `json:"external_port"`
 	ReadTimeout  time.Duration `json:"read_timeout"`
 	WriteTimeout time.Duration `json:"write_timeout"`
 	IdleTimeout  time.Duration `json:"idle_timeout"`
@@ -108,6 +110,8 @@ func loadConfig() *Config {
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "localhost"),
 			Port:         getEnv("SERVER_PORT", "8080"),
+			ExternalHost: getEnv("SERVER_EXTERNAL_HOST", "localhost"),
+			ExternalPort: getEnv("SERVER_EXTERNAL_HOST", "8000"),
 			ReadTimeout:  getEnvAsDuration("SERVER_READ_TIMEOUT", 15*time.Second),
 			WriteTimeout: getEnvAsDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),
 			IdleTimeout:  getEnvAsDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
@@ -193,8 +197,13 @@ func (c *Config) IsProduction() bool {
 	return c.App.Environment == "production"
 }
 
-// GetServerAddress returns the server address in the format "host:port"
+// GetServerAddress returns the external server address in the format "host:port"
 func (c *Config) GetServerAddress() string {
+	return fmt.Sprintf("%s:%s", c.Server.ExternalHost, c.Server.ExternalPort)
+}
+
+// GetInternalServerAddress returns the internal server address in the format "host:port"
+func (c *Config) GetInternalServerAddress() string {
 	return fmt.Sprintf("%s:%s", c.Server.Host, c.Server.Port)
 }
 

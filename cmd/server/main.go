@@ -53,7 +53,7 @@ func main() {
 
 	// Server configuration
 	server := &http.Server{
-		Addr:         cfg.GetServerAddress(),
+		Addr:         cfg.GetInternalServerAddress(),
 		Handler:      handler,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
