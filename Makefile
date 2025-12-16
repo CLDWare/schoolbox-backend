@@ -43,6 +43,17 @@ deps:
 # Development setup
 dev-setup: deps fmt vet
 
+# Development start caddy
+dev-start-caddy:
+	caddy start
+
+# Development start caddy
+dev-stop-caddy:
+	caddy stop
+
+# Development run
+dev-run: dev-start-caddy run
+
 # Build for production
 build-prod:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/server cmd/server/main.go
