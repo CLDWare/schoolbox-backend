@@ -18,24 +18,30 @@
     </style>
 </head>
 
-<body class="m-2 bg-neutral-950 text-white">
+<body class="m-2 bg-neutral-950 text-white p-1">
     <a href="/api/login">login</a><br>
-    
+
     <span id="userTableMeta"></span>
-    <table id="userTable" class="table-auto w-full bg-neutral-900 p-2 mb-3">
+    <table id="userTable" class="table-fixed w-full bg-neutral-900 mb-3">
         <thead class="border-solid border-gray-300 border-b-2">
-            <th>User</th>
-            <th>Role</th>
-            <th>Joined at</th>
+            <tr>
+                <th class="w-64 px-2 py-1 text-left">User</th>
+                <th class="w-64 px-2 py-1 text-left">Google Id</th>
+                <th class="px-2 py-1 text-left">Default question</th>
+                <th class="w-20 px-2 py-1 text-left">Role</th>
+                <th class="w-32 px-2 py-1 text-left">Joined at</th>
+            </tr>
         </thead>
     </table>
 
     <span id="deviceTableMeta"></span>
-    <table id="deviceTable" class="table-auto w-full bg-neutral-900 p-1">
+    <table id="deviceTable" class="table-fixed w-full bg-neutral-900">
         <thead class="border-solid border-gray-300 border-b-2">
-            <th>Device</th>
-            <th>Current session</th>
-            <th>Last seen at</th>
+            <th class="px-2 py-1 text-left">Device</th>
+            <th class="px-2 py-1 text-left">Current session</th>
+            <th class="w-24 px-2 py-1 text-left">Last seen</th>
+            <th class="w-24 px-2 py-1 text-left">Lastest login</th>
+            <th class="w-24 px-2 py-1 text-left">Registrated at</th>
         </thead>
     </table>
     <script type="module">
@@ -53,12 +59,12 @@
             let body = await res.json();
             console.log(body);
             let users = body.data
-            console.log(users);
+            console.log("users", users);
 
             const updated = new Date(body.timestamp)
-            const date = updated.toISOString().slice(0,10)
-            const time = updated.toISOString().slice(11,16)
-            const isToday = date == new Date().toISOString().slice(0,10)
+            const date = updated.toISOString().slice(0, 10)
+            const time = updated.toISOString().slice(11, 16)
+            const isToday = date == new Date().toISOString().slice(0, 10)
             userTableMeta.innerText = `${time} ${isToday ? "today" : date}`
 
             for (let i = 0; i < users.length; i++) {
@@ -81,6 +87,21 @@
 
                 row.appendChild(nameData)
 
+                let googleIdData = document.createElement("td")
+                googleIdData.innerText = user.google_sub
+                row.appendChild(googleIdData)
+
+                let defaultQuestionData = document.createElement("td")
+                defaultQuestionData.classList.add(
+                    "text-nowrap",
+                    "truncate",
+                    "max-w-1"
+                )
+                defaultQuestionData.innerText = user.default_question
+                defaultQuestionData.title = user.default_question
+                row.appendChild(defaultQuestionData)
+
+
                 let roleData = document.createElement("td")
                 roleData.innerText = user.role
                 row.appendChild(roleData)
@@ -99,7 +120,7 @@
             }
         })();
 
-        
+
         (async function () {
             const res = await fetch(API_URL + "/device", {
                 method: "GET"
@@ -107,12 +128,12 @@
             let body = await res.json();
             console.log(body);
             let devices = body.data
-            console.log(devices);
+            console.log("devices", devices);
 
             const updated = new Date(body.timestamp)
-            const date = updated.toISOString().slice(0,10)
-            const time = updated.toISOString().slice(11,16)
-            const isToday = date == new Date().toISOString().slice(0,10)
+            const date = updated.toISOString().slice(0, 10)
+            const time = updated.toISOString().slice(11, 16)
+            const isToday = date == new Date().toISOString().slice(0, 10)
             deviceTableMeta.innerText = `${time} ${isToday ? "today" : date}`
 
             for (let i = 0; i < devices.length; i++) {
@@ -139,25 +160,51 @@
                 nameData.appendChild(idSpan)
 
                 row.appendChild(nameData)
-                
-                let sessionIdData = document.createElement("td")
+
+                let sessionData = document.createElement("td")
                 if (device.active_session_id) {
-                    sessionIdData.innerText = device.active_session_id
+                    const sessionId = device.active_session_id
+                    const sessionRes = await fetch(API_URL + "/session/" + sessionId, {
+                        method: "GET"
+                    });
+                    let sessionBody = await sessionRes.json();
+                    console.log(sessionBody);
+                    let sessionInfo = sessionBody.data
+                    console.log("sessions", sessionInfo);
+
+                    sessionData.innerText = sessionInfo.question
                 } else {
-                    sessionIdData.innerText = "none"
-                    sessionIdData.classList.add("italic","text-gray-100")
+                    sessionData.innerText = "none"
+                    sessionData.classList.add("italic", "text-gray-100")
                 }
-                row.appendChild(sessionIdData)
+                row.appendChild(sessionData)
 
                 let lastSeenData = document.createElement("td")
                 const lastSeen = new Date(device.last_seen)
-                const formattedDate = lastSeen.toLocaleDateString('en-GB', {
+                lastSeenData.innerText = lastSeen.toLocaleDateString('en-GB', {
                     day: '2-digit',
                     month: '2-digit',
                     year: '2-digit'
                 });
-                lastSeenData.innerText = formattedDate
                 row.appendChild(lastSeenData)
+
+                let latestLoginData = document.createElement("td")
+                const latestLogin = new Date(device.latest_login)
+                latestLoginData.innerText = lastSeen.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                row.appendChild(latestLoginData)
+
+                let registeredAtData = document.createElement("td")
+                const registeredAt = new Date(device.last_seen)
+                registeredAtData.innerText = lastSeen.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                row.appendChild(registeredAtData)
 
                 deviceTable.appendChild(row)
             }
