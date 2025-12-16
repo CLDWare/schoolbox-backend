@@ -30,7 +30,7 @@ func (mw AuthenticationMiddleware) Required(next func(w http.ResponseWriter, r *
 
 		session, err := gorm.G[models.AuthSession](mw.DB).Where("session_token = ?", auth_session.Value).First(ctx)
 		if err == gorm.ErrRecordNotFound {
-			gecho.Unauthorized(w).WithMessage("Invalid session").Send()
+			gecho.Unauthorized(w).WithMessage("Invalid or expired session").Send()
 			return
 		} else if err != nil {
 			gecho.InternalServerError(w).Send()
