@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -68,6 +69,7 @@ func toSessionInfo(session models.Session) map[string]any {
 		"question":        session.Question.Question,
 		"deviceID":        session.DeviceID,
 		"date":            session.Date,
+		"stopped_at":      session.StoppedAt,
 		"firstAnwserTime": session.FirstAnwserTime,
 		"lastAnwserTime":  session.LastAnwserTime,
 		"votes": [5]uint16{
@@ -233,6 +235,33 @@ func (h *SessionHandler) PostSession(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(sessionInfo).Send()
 }
 
+func (h *SessionHandler) StopSession(w http.ResponseWriter, ctx context.Context, sessionID uint) *models.Session {
+	h.db.Model(&models.Session{}).
+		Where("id = ?", sessionID).
+		UpdateColumn("stopped_at", time.Now())
+
+	session, err := gorm.G[models.Session](h.db).Preload("Question", nil).Where("id = ?", sessionID).First(ctx)
+	if err == gorm.ErrRecordNotFound {
+		gecho.InternalServerError(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
+		return nil
+	}
+	if err != nil {
+		logger.Err(err.Error())
+		gecho.InternalServerError(w).Send()
+		return nil
+	}
+
+	_, err = gorm.G[models.Device](h.db).Where("id = ?", session.DeviceID).Update(ctx, "active_session_id", nil)
+	if err != nil {
+		logger.Err(err.Error())
+	}
+
+	h.sessionMan.removeSession(&session)
+	h.websocketHandler.stopSession(&session)
+
+	return &session
+}
+
 // handles POST /session/stop requests
 // Any user can POST this endpoint to stop their own session
 func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request) {
@@ -255,25 +284,33 @@ func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.db.Model(&models.Session{}).
-		Where("id = ?", sessionID).
-		UpdateColumn("stopped_at", time.Now())
+	session := h.StopSession(w, ctx, *sessionID)
 
-	session, err := gorm.G[models.Session](h.db).Preload("Question", nil).Where("id = ?", sessionID).First(ctx)
-	if err == gorm.ErrRecordNotFound {
-		gecho.InternalServerError(w).WithMessage(fmt.Sprintf("No session with id: %d", sessionID)).Send()
+	sessionInfo := toSessionInfo(*session)
+
+	gecho.Success(w).WithData(sessionInfo).Send()
+}
+
+// handles POST /session/{id}/stop requests
+// Admins can POST this endpoint to stop any session
+func (h *SessionHandler) PostSessionStopById(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
 		return
 	}
+
+	ctx := r.Context()
+
+	sessionIDStr := r.PathValue("id")
+	sessionID, err := strconv.ParseUint(sessionIDStr, 10, 0)
 	if err != nil {
-		logger.Err(err.Error())
-		gecho.InternalServerError(w).Send()
+		gecho.BadRequest(w).WithMessage("Invalid session ID, expected positive integer").Send()
 		return
 	}
 
-	h.sessionMan.removeSession(&session)
-	h.websocketHandler.stopSession(&session)
+	session := h.StopSession(w, ctx, uint(sessionID))
 
-	sessionInfo := toSessionInfo(session)
+	sessionInfo := toSessionInfo(*session)
 
 	gecho.Success(w).WithData(sessionInfo).Send()
 }

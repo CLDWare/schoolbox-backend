@@ -90,6 +90,7 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/session/stop", auth.Required(api.SessionHandler.PostSessionStop))
 	mux.HandleFunc("/session/current", auth.Required(api.SessionHandler.GetCurrentSession))
 	mux.HandleFunc("/session/{id}", auth.Required(api.SessionHandler.GetSessionById))
+	mux.HandleFunc("/session/{id}/stop", auth.Required(api.SessionHandler.PostSessionStopById))
 
 	// Fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)
