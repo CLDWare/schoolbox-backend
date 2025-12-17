@@ -210,7 +210,7 @@ func (h *DeviceHandler) PostDeviceRelink(w http.ResponseWriter, r *http.Request)
 
 	deviceFromDb, err := gorm.G[models.Device](h.db).Where("id = ?", body.DeviceID).First(ctx)
 	if err == gorm.ErrRecordNotFound {
-		gecho.NotFound(w).WithMessage(fmt.Sprintf("No device with id of %s", body.DeviceID)).Send()
+		gecho.NotFound(w).WithMessage(fmt.Sprintf("No device with id of %d", body.DeviceID)).Send()
 		return
 	}
 	if err != nil {
