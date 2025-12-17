@@ -72,7 +72,7 @@ func registrationFlow(conn *websocketConnection, message websocketMessage) error
 	return nil
 }
 
-func (h *WebsocketHandler) registerWithPin(pin uint) (*models.Device, error) {
+func (h *WebsocketHandler) registerWithPin(pin uint, device *models.Device) (*models.Device, error) {
 	h.mu.RLock()
 	connectionID, ok := h.registrationPins[pin]
 	if !ok {
@@ -97,13 +97,24 @@ func (h *WebsocketHandler) registerWithPin(pin uint) (*models.Device, error) {
 
 	ctx := context.Background()
 
-	device := models.Device{
-		Token: token,
-	}
-	err = gorm.G[models.Device](h.db).Create(ctx, &device)
-	if err != nil {
-		logger.Err(fmt.Sprintf("Error while creating device in database: %s", err.Error()))
-		return nil, errors.New(err.Error())
+	if device == nil {
+		device = &models.Device{
+			Token: token,
+		}
+
+		err = gorm.G[models.Device](h.db).Create(ctx, device)
+		if err != nil {
+			logger.Err(fmt.Sprintf("Error while creating device in database during registration: %s", err.Error()))
+			return nil, errors.New(err.Error())
+		}
+	} else {
+		device.Token = token
+
+		_, err = gorm.G[models.Device](h.db).Updates(ctx, *device)
+		if err != nil {
+			logger.Err(fmt.Sprintf("Error while updating device in database during relink: %s", err.Error()))
+			return nil, errors.New(err.Error())
+		}
 	}
 
 	command := "reg_ok"
@@ -122,5 +133,5 @@ func (h *WebsocketHandler) registerWithPin(pin uint) (*models.Device, error) {
 
 	logger.Info(fmt.Sprintf("Registered new device with ID %d", device.ID))
 
-	return &device, nil
+	return device, nil
 }

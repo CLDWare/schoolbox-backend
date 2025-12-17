@@ -152,7 +152,7 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 }
 
 // ===== DEVICE REGISTRATION AND RELINKING =====
-type RegistrationPinBody struct {
+type PostDeviceRegisterBody struct {
 	Pin uint `json:"pin"`
 }
 
@@ -162,7 +162,7 @@ func (h *DeviceHandler) PostDeviceRegister(w http.ResponseWriter, r *http.Reques
 		err.Send() // Automatically sends 405 Method Not Allowed
 		return
 	}
-	var body RegistrationPinBody
+	var body PostDeviceRegisterBody
 
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
@@ -170,7 +170,57 @@ func (h *DeviceHandler) PostDeviceRegister(w http.ResponseWriter, r *http.Reques
 		logger.Err(err)
 		return
 	}
-	device, err := h.websocketHandler.registerWithPin(body.Pin)
+	device, err := h.websocketHandler.registerWithPin(body.Pin, nil)
+	if err != nil {
+		if err.Error() == "No connectionID for this pin" {
+			gecho.BadRequest(w).WithMessage("Invalid pin").Send()
+		} else {
+			gecho.InternalServerError(w).WithMessage(err.Error()).Send()
+		}
+		return
+	}
+
+	RegistrationPinData := map[string]any{
+		"id": device.ID,
+	}
+
+	gecho.Created(w).WithData(RegistrationPinData).Send()
+}
+
+type PostDeviceRelinkBody struct {
+	Pin      uint `json:"pin"`
+	DeviceID uint `json:"device_id"`
+}
+
+// handles POST /device/relink requests
+func (h *DeviceHandler) PostDeviceRelink(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+	ctx := r.Context()
+	var body PostDeviceRelinkBody
+
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		gecho.BadRequest(w).WithMessage(err.Error()).Send()
+		logger.Err(err)
+		return
+	}
+
+	deviceFromDb, err := gorm.G[models.Device](h.db).Where("id = ?", body.DeviceID).First(ctx)
+	if err == gorm.ErrRecordNotFound {
+		gecho.NotFound(w).WithMessage(fmt.Sprintf("No device with id of %s", body.DeviceID)).Send()
+		return
+	}
+	if err != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(err.Error())
+		return
+	}
+	device := &deviceFromDb
+
+	device, err = h.websocketHandler.registerWithPin(body.Pin, device)
 	if err != nil {
 		if err.Error() == "No connectionID for this pin" {
 			gecho.BadRequest(w).WithMessage("Invalid pin").Send()

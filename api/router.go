@@ -79,6 +79,7 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/device/{id}", auth.RequiresAdmin(api.DeviceHandler.GetDeviceById))
 
 	mux.HandleFunc("/device/register", auth.RequiresAdmin(api.DeviceHandler.PostDeviceRegister))
+	mux.HandleFunc("/device/relink", auth.RequiresAdmin(api.DeviceHandler.PostDeviceRelink))
 
 	// Session api
 	sessionRouter := NewMethodRouter(map[string]http.HandlerFunc{
