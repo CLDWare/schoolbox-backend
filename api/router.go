@@ -16,7 +16,6 @@ type API struct {
 	database              *gorm.DB
 	versionHandler        *handlers.VersionHandler
 	websocketHandler      *handlers.WebsocketHandler
-	registrationHandler   *handlers.RegistrationHandler
 	authenticationHandler *handlers.AuthenticationHandler
 	UserHandler           *handlers.UserHandler
 	SessionHandler        *handlers.SessionHandler
@@ -31,11 +30,10 @@ func NewAPI(db *gorm.DB) *API {
 		database:              db,
 		versionHandler:        handlers.NewVersionHandler(cfg),
 		websocketHandler:      websocketHandler,
-		registrationHandler:   handlers.NewRegistrationHandler(cfg, websocketHandler),
 		authenticationHandler: handlers.NewAuthenticationHandler(cfg, db),
 		UserHandler:           handlers.NewUserHandler(cfg, db),
 		SessionHandler:        handlers.NewSessionHandler(cfg, db, websocketHandler),
-		DeviceHandler:         handlers.NewDeviceHandler(cfg, db),
+		DeviceHandler:         handlers.NewDeviceHandler(cfg, db, websocketHandler),
 	}
 }
 
@@ -80,6 +78,8 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/device", auth.RequiresAdmin(api.DeviceHandler.GetDevice))
 	mux.HandleFunc("/device/{id}", auth.RequiresAdmin(api.DeviceHandler.GetDeviceById))
 
+	mux.HandleFunc("/device/register", auth.RequiresAdmin(api.DeviceHandler.PostDeviceRegister))
+
 	// Session api
 	sessionRouter := NewMethodRouter(map[string]http.HandlerFunc{
 		http.MethodGet:  api.SessionHandler.GetSession,
@@ -89,8 +89,6 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/session/stop", auth.Required(api.SessionHandler.PostSessionStop))
 	mux.HandleFunc("/session/current", auth.Required(api.SessionHandler.GetCurrentSession))
 	mux.HandleFunc("/session/{id}", auth.Required(api.SessionHandler.GetSessionById))
-
-	mux.HandleFunc("/registration_pin", auth.RequiresAdmin(api.registrationHandler.PostRegistrationPin))
 
 	// Fallback route - must be last because it matches all routes.
 	mux.HandleFunc("/", fallBack)
