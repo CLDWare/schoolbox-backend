@@ -42,6 +42,19 @@
             <th class="w-24 py-1 text-left">Last seen</th>
             <th class="w-28 py-1 text-left">Lastest login</th>
             <th class="w-32 py-1 text-left">Registrated at</th>
+            <th class="w-32 py-1 text-left"></th> <!-- For buttons -->
+        </thead>
+    </table>
+
+    <span id="sessionTableMeta"></span>
+    <table id="sessionTable" class="table-fixed w-full bg-neutral-900">
+        <thead class="border-solid border-gray-300 border-b-2">
+            <th class="w-24 py-1 text-left">Session</th>
+            <th class="     py-1 text-left">Question</th>
+            <th class="w-24 py-1 text-left">Date</th>
+            <th class="w-28 py-1 text-left">Stopped at</th>
+            <th class="w-28 py-1 text-left">User</th>
+            <th class="w-28 py-1 text-left">Device</th>
         </thead>
     </table>
     <script type="module">
@@ -51,6 +64,8 @@
         const userTableMeta = document.getElementById("userTableMeta");
         const deviceTable = document.getElementById("deviceTable");
         const deviceTableMeta = document.getElementById("deviceTableMeta");
+        const sessionTable = document.getElementById("sessionTable");
+        const sessionTableMeta = document.getElementById("sessionTableMeta");
 
         (async function () {
             const res = await fetch(API_URL + "/user", {
@@ -162,7 +177,18 @@
                 row.appendChild(nameData)
 
                 let sessionData = document.createElement("td")
+                row.appendChild(sessionData)
+                let sessionSpan = document.createElement("span")
+                sessionData.appendChild(sessionSpan)
+                sessionSpan.classList.add(
+                    "flex",
+                    "items-center",
+                    "justify-between"
+                )
+                let sessionQuestion = document.createElement("span")
+                sessionSpan.appendChild(sessionQuestion)
                 if (device.active_session_id) {
+
                     const sessionId = device.active_session_id
                     const sessionRes = await fetch(API_URL + "/session/" + sessionId, {
                         method: "GET"
@@ -170,14 +196,26 @@
                     let sessionBody = await sessionRes.json();
                     console.log(sessionBody);
                     let sessionInfo = sessionBody.data
-                    console.log("sessions", sessionInfo);
+                    console.log("session", sessionInfo);
 
-                    sessionData.innerText = sessionInfo.question
+                    sessionQuestion.innerText = sessionInfo.question
+
+                    let sessionStopButton = document.createElement("button")
+                    sessionSpan.appendChild(sessionStopButton)
+                    sessionStopButton.classList.add("text-center", "mr-3", "p-1", "border-solid", "border-neutral-800", "border-2", "rounded-lg", "hover:bg-neutral-800", "onclick")
+                    sessionStopButton.innerText = "Stop"
+                    sessionStopButton.addEventListener("click", async (e) => {
+                        console.log(`Stopping session ${sessionInfo.id} on device ${sessionInfo.deviceID}`)
+
+                        const res = await fetch(`${API_URL}/session/${sessionInfo.id}/stop`, {
+                            method: "POST",
+                            // body: JSON.stringify(reqBody),
+                        });
+                    })
                 } else {
-                    sessionData.innerText = "none"
-                    sessionData.classList.add("italic", "text-gray-100")
+                    sessionQuestion.innerText = "none"
+                    sessionQuestion.classList.add("italic", "text-gray-100")
                 }
-                row.appendChild(sessionData)
 
                 let lastSeenData = document.createElement("td")
                 const lastSeen = new Date(device.last_seen)
@@ -206,7 +244,132 @@
                 });
                 row.appendChild(registeredAtData)
 
+                let relinkData = document.createElement("td")
+                let relinkButton = document.createElement("button")
+                relinkButton.classList.add("text-center", "p-1", "border-solid", "border-neutral-800", "border-2", "rounded-lg", "hover:bg-neutral-800", "onclick")
+                relinkButton.innerText = "Relink"
+                relinkButton.addEventListener("click", async (e) => {
+                    let pin = prompt(`Enter registration pin to link device to ${device.id}`);
+                    if (pin == null) {
+                        console.log("Relink aborted: pin entering canceled")
+                        return
+                    }
+                    pin = Number(pin)
+                    if (isNaN(pin)) {
+                        alert("Please enter a valid 4 digit code")
+                        return
+                    }
+                    if (pin < 0 || pin > 9999) {
+                        alert("Please enter a valid 4 digit code")
+                        return
+                    }
+
+                    const reqBody = {
+                        "pin": pin,
+                        "device_id": device.id,
+                    }
+                    console.log("Prepared POST /api/device/relink", reqBody)
+
+                    let confirmed = confirm("Are you sure you want to relink?\nOnly do this if no physical device is linked to this database entry.\nTHIS ACTION CAN NOT BE REVERSED!")
+                    if (confirmed != true) {
+                        console.log("Relink aborted: not confirmed")
+                        return
+                    }
+
+                    const res = await fetch(API_URL + "/device/relink", {
+                        method: "POST",
+                        body: JSON.stringify(reqBody),
+                    });
+                    let body = await res.json();
+                    console.log(body);
+                    if (!res.ok) {
+                        alert(`HTTP ${res.status} ${res.statusText} while relinking\n${body.message}`)
+                        return
+                    }
+                    alert(`Succesfully relinked ${body.data.id}`);
+                })
+
+                relinkData.appendChild(relinkButton)
+                row.appendChild(relinkData)
+
                 deviceTable.appendChild(row)
+            }
+        })();
+
+        (async function () {
+            const res = await fetch(API_URL + "/session?asRole=1", {
+                method: "GET"
+            });
+            let body = await res.json();
+            console.log(body);
+            let sessions = body.data
+            console.log("sessions", sessions);
+
+            const updated = new Date(body.timestamp)
+            const date = updated.toISOString().slice(0, 10)
+            const time = updated.toISOString().slice(11, 16)
+            const isToday = date == new Date().toISOString().slice(0, 10)
+            sessionTableMeta.innerText = `${time} ${isToday ? "today" : date}`
+
+            const lim = 20
+            let offset = 0
+            while (sessions.length == (offset+1)*lim) {
+                offset++
+                console.log(`Query limit filled, querying more (total=${sessions.length}) (offset=${offset})`)
+                const res = await fetch(`${API_URL}/session?asRole=1&offset=${offset*20}`, {
+                    method: "GET"
+                });
+                let body = await res.json();
+                sessions.concat(body.data);
+                console.log(`queried more sessions (count=${body.data.length})`)
+            }
+
+            for (let i = 0; i < sessions.length; i++) {
+                const session = sessions[i]
+                let row = document.createElement("tr")
+                sessionTable.appendChild(row)
+                row.classList.add("itemRow")
+
+                let sessionIdData = document.createElement("td")
+                row.appendChild(sessionIdData)
+                sessionIdData.innerText = session.id
+
+                let questionData = document.createElement("td")
+                row.appendChild(questionData)
+                questionData.classList.add(
+                    "text-nowrap",
+                    "truncate",
+                    "max-w-1"
+                )
+                questionData.innerText = session.question
+
+                let dateData = document.createElement("td")
+                row.appendChild(dateData)
+                dateData.innerText = new Date(session.date).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+
+                let stoppedAtData = document.createElement("td")
+                row.appendChild(stoppedAtData)
+                if (session.stopped_at != undefined) {
+                    stoppedAtData.innerText = new Date(session.date).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: '2-digit'
+                    });
+                } else {
+                    stoppedAtData.classList.add("text-neutral-400")
+                    stoppedAtData.innerText = "Ongoing"
+                }
+                let userData = document.createElement("td")
+                row.appendChild(userData)
+                userData.innerText = session.userID
+
+                let deviceData = document.createElement("td")
+                row.appendChild(deviceData)
+                deviceData.innerText = session.deviceID
             }
         })();
 
