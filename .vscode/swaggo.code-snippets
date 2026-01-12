@@ -93,6 +93,15 @@
 		],
 		"description": "Swaggo annotation @Router"
 	},
+	"swaggo.Failure400": {
+		"scope": "go",
+		"prefix": "// @Failure400",
+		"body": [
+			"// @Failure\t\t400\t{object}\tapiResponses.BadRequestError",
+			"$0"
+		],
+		"description": "Swaggo annotation @Failure for bad request"
+	},
 	"swaggo.Failure401": {
 		"scope": "go",
 		"prefix": "// @Failure401",
@@ -120,6 +129,15 @@
 		],
 		"description": "Swaggo annotation @Failure for not found"
 	},
+	"swaggo.Failure409": {
+		"scope": "go",
+		"prefix": "// @Failure409",
+		"body": [
+			"// @Failure\t\t409\t{object}\tapiResponses.ConflictError",
+			"$0"
+		],
+		"description": "Swaggo annotation @Failure for conflict"
+	},
 	"swaggo.Failure500": {
 		"scope": "go",
 		"prefix": "// @Failure500",
@@ -128,5 +146,14 @@
 			"$0"
 		],
 		"description": "Swaggo annotation @Failure for internal server error"
+	},
+	"swaggo.Failure503": {
+		"scope": "go",
+		"prefix": "// @Failure503",
+		"body": [
+			"// @Failure\t\t503\t{object}\tapiResponses.ServiceUnavailableError",
+			"$0"
+		],
+		"description": "Swaggo annotation @Failure for service unavailable"
 	},
 }

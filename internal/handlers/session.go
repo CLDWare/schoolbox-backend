@@ -61,18 +61,30 @@ func (sm *SessionManager) removeSession(session *models.Session) {
 	sm.mu.Unlock()
 }
 
-func toSessionInfo(session models.Session) map[string]any {
-	return map[string]any{
-		"id":              session.ID,
-		"userID":          session.UserID,
-		"questionID":      session.QuestionID,
-		"question":        session.Question.Question,
-		"deviceID":        session.DeviceID,
-		"date":            session.Date,
-		"stopped_at":      session.StoppedAt,
-		"firstAnwserTime": session.FirstAnwserTime,
-		"lastAnwserTime":  session.LastAnwserTime,
-		"votes": [5]uint16{
+type SessionInfo struct {
+	ID              uint       `json:"id"`
+	UserID          uint       `json:"user_id"`
+	QuestionID      uint       `json:"question_id"`
+	Question        string     `json:"question"`
+	DeviceID        uint       `json:"device_id"`
+	Date            time.Time  `json:"date" format:"date-time"`
+	StoppedAt       *time.Time `json:"stopped_at" format:"date-time"`
+	FirstAnwserTime *time.Time `json:"first_answer_time" format:"date-time"`
+	LastAnwserTime  *time.Time `json:"last_answer_time" format:"date-time"`
+	Votes           [5]uint16  `json:"votes"`
+}
+
+func toSessionInfo(session models.Session) SessionInfo {
+	return SessionInfo{ID: session.ID,
+		UserID:          session.UserID,
+		QuestionID:      session.QuestionID,
+		Question:        session.Question.Question,
+		DeviceID:        session.DeviceID,
+		Date:            session.Date,
+		StoppedAt:       session.StoppedAt,
+		FirstAnwserTime: session.FirstAnwserTime,
+		LastAnwserTime:  session.LastAnwserTime,
+		Votes: [5]uint16{
 			session.A1_count,
 			session.A2_count,
 			session.A3_count,
@@ -82,9 +94,22 @@ func toSessionInfo(session models.Session) map[string]any {
 	}
 }
 
-// handles GET /session requests
-// Any user can query this endpoint for their own sessions
-// Privileged users can add asRole=1 query parameter to act with their privileges
+// GetSession
+//
+// @Summary		Get sessions owned by the current user or all users
+// @Description	Get all sessions owned by the current user or for all users if acting as admin
+// @Tags			session requiresAuth supportsAdmin
+// @Accept			json
+// @Produce		json
+// @Param			asRole	query		uint	false	"Try to act as this role (will cause 403 if you do not have this role)" Enums(0,1) default(0)
+// @Param			limit	query		int	false	"Amount of sessions to return" default(20) maximum(20)
+// @Param			offset	query		int	false	"How much sessions to skip before starting to return sessions" default(0) minimum(0)
+// @Param			questionID	query		int	false	"Only return sessions that use this question"
+// @Success		200	{object}	apiResponses.BaseResponse{data=[]SessionInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/session [get]
 func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -167,7 +192,7 @@ func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionInfoArray := []map[string]any{}
+	sessionInfoArray := []SessionInfo{}
 	for _, session := range sessions {
 		sessionInfoArray = append(sessionInfoArray, toSessionInfo(session))
 	}
@@ -180,8 +205,22 @@ type PostSessionBody struct {
 	Question *string `json:"question"`
 }
 
-// handles POST /session requests
-// Any user can POST this endpoint to start a session (if they dont have an active one)
+// PostSession
+//
+// @Summary		Start a new session if no active one is present
+// @Description	Any user can POST this endpoint to start a session if they dont have an active session
+// @Tags			session requiresAuth
+// @Accept			json
+// @Produce		json
+// @Param			device_id	body		string	true	"Id of the device to start the session on."
+// @Param			question	body		string	true	"Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created."
+// @Success		200	{object}	apiResponses.BaseResponse{data=SessionInfo}
+// @Failure		400	{object}	apiResponses.BadRequestError
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		409	{object}	apiResponses.ConflictError "User already has an active session"
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Failure		503	{object}	apiResponses.ServiceUnavailableError "Requested device is not available"
+// @Router			/session [post]
 func (h *SessionHandler) PostSession(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -262,8 +301,18 @@ func (h *SessionHandler) StopSession(w http.ResponseWriter, ctx context.Context,
 	return &session
 }
 
-// handles POST /session/stop requests
-// Any user can POST this endpoint to stop their own session
+// PostSessionStop
+//
+// @Summary		Stop your own sesssion
+// @Description	Any user can POST this endpoint to stop their own session.
+// @Description Might be moved to PATCH /session
+// @Tags			session requiresAuth
+// @Accept			json
+// @Produce		json
+// @Success		200	{object}	apiResponses.BaseResponse{data=SessionInfo}
+// @Failure		404	{object}	apiResponses.NotFoundError "no current session"
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/session/stop [post]
 func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -291,8 +340,21 @@ func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request)
 	gecho.Success(w).WithData(sessionInfo).Send()
 }
 
-// handles POST /session/{id}/stop requests
-// Admins can POST this endpoint to stop any session
+// PostSessionStopById
+//
+// @Summary		Stop a session with specific id
+// @Description	Admins can POST this endpoint to stop any session
+// @Description Might be moved to PATCH /session/{id}
+// @Tags			session requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			id	path		string	true	"Session id of the session to stop"
+// @Success		200	{object}	apiResponses.BaseResponse{data=SessionInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/session/{id}/stop [post]
 func (h *SessionHandler) PostSessionStopById(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -315,8 +377,19 @@ func (h *SessionHandler) PostSessionStopById(w http.ResponseWriter, r *http.Requ
 	gecho.Success(w).WithData(sessionInfo).Send()
 }
 
-// handles GET /session/current requests
-// Any user can query this endpoint for their own session
+// GetCurrentSession
+//
+// @Summary		Get your current session
+// @Description	Any user can query this endpoint for their own session
+// @Tags			session requiresAuth supportsAdmin
+// @Accept			json
+// @Produce		json
+// @Success		200	{object}	apiResponses.BaseResponse{data=SessionInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/session/current [get]
 func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -353,9 +426,22 @@ func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Reques
 	gecho.Success(w).WithData(sessionInfo).Send()
 }
 
-// handles GET /session/{id} requests
-// Any user can query this endpoint for their own sessions
-// Privileged users can add asRole=1 query parameter to act with their privileges
+// GetSessionById
+//
+// @Summary		Get sessions by id if owner or acting as admin
+// @Description	Any user can query this endpoint for their own sessions
+// @Description Privileged users can add asRole=1 query parameter to act with their privileges
+// @Tags			session requiresAuth supportsAdmin
+// @Accept			json
+// @Produce		json
+// @Param			asRole	query		uint	false	"Try to act as this role (will cause 403 if you do not have this role)" Enums(0,1) default(0)
+// @Param			id	path		string	true	"Id of the session"
+// @Success		200	{object}	apiResponses.BaseResponse{data=[]SessionInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/session/{id} [get]
 func (h *SessionHandler) GetSessionById(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed

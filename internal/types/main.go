@@ -40,10 +40,22 @@ type NotFoundError struct {
 	Success bool   `default:"false"`
 	Message string `default:"Not Found"`
 }
+type ConflictError struct {
+	BaseBase
+	Status  int    `default:"409"`
+	Success bool   `default:"false"`
+	Message string `default:"Conflict"`
+}
 
 type InternalServerError struct {
 	BaseBase
 	Status  int    `default:"500"`
 	Success bool   `default:"false"`
 	Message string `default:"Internal Server Error"`
+}
+type ServiceUnavailableError struct {
+	BaseBase
+	Status  int    `default:"503"`
+	Success bool   `default:"false"`
+	Message string `default:"Service Unavailable"`
 }

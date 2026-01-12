@@ -1,5 +1,21 @@
 basePath: /api
 definitions:
+  apiResponses.BadRequestError:
+    properties:
+      message:
+        example: Could not parse 'hi' as int
+        type: string
+      status:
+        default: 400
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
   apiResponses.BaseResponse:
     properties:
       data: {}
@@ -11,6 +27,22 @@ definitions:
         type: integer
       success:
         example: true
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.ConflictError:
+    properties:
+      message:
+        default: Conflict
+        type: string
+      status:
+        default: 409
+        type: integer
+      success:
+        default: false
         type: boolean
       timestamp:
         example: "2026-01-12T21:52:50.253429709+01:00"
@@ -65,6 +97,22 @@ definitions:
         format: date-time
         type: string
     type: object
+  apiResponses.ServiceUnavailableError:
+    properties:
+      message:
+        default: Service Unavailable
+        type: string
+      status:
+        default: 503
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
   apiResponses.UnauthorizedError:
     properties:
       message:
@@ -92,6 +140,35 @@ definitions:
       version:
         example: 1.0.0
         type: string
+    type: object
+  handlers.SessionInfo:
+    properties:
+      date:
+        format: date-time
+        type: string
+      device_id:
+        type: integer
+      first_answer_time:
+        format: date-time
+        type: string
+      id:
+        type: integer
+      last_answer_time:
+        format: date-time
+        type: string
+      question:
+        type: string
+      question_id:
+        type: integer
+      stopped_at:
+        format: date-time
+        type: string
+      user_id:
+        type: integer
+      votes:
+        items:
+          type: integer
+        type: array
     type: object
   handlers.UserInfo:
     properties:
@@ -153,6 +230,287 @@ paths:
       summary: Get userData about current authenticated user
       tags:
       - user requiresAuth
+  /session:
+    get:
+      consumes:
+      - application/json
+      description: Get all sessions owned by the current user or for all users if
+        acting as admin
+      parameters:
+      - default: 0
+        description: Try to act as this role (will cause 403 if you do not have this
+          role)
+        enum:
+        - 0
+        - 1
+        in: query
+        name: asRole
+        type: integer
+      - default: 20
+        description: Amount of sessions to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much sessions to skip before starting to return sessions
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return sessions that use this question
+        in: query
+        name: questionID
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.SessionInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get sessions owned by the current user or all users
+      tags:
+      - session requiresAuth supportsAdmin
+    post:
+      consumes:
+      - application/json
+      description: Any user can POST this endpoint to start a session if they dont
+        have an active session
+      parameters:
+      - description: Id of the device to start the session on.
+        in: body
+        name: device_id
+        required: true
+        schema:
+          type: string
+      - description: Question to start the session id with. If identical question
+          already exists in the database, it is used. If it doesnt exist a new entry
+          is created.
+        in: body
+        name: question
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apiResponses.BadRequestError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "409":
+          description: User already has an active session
+          schema:
+            $ref: '#/definitions/apiResponses.ConflictError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+        "503":
+          description: Requested device is not available
+          schema:
+            $ref: '#/definitions/apiResponses.ServiceUnavailableError'
+      summary: Start a new session if no active one is present
+      tags:
+      - session requiresAuth
+  /session/{id}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Any user can query this endpoint for their own sessions
+        Privileged users can add asRole=1 query parameter to act with their privileges
+      parameters:
+      - default: 0
+        description: Try to act as this role (will cause 403 if you do not have this
+          role)
+        enum:
+        - 0
+        - 1
+        in: query
+        name: asRole
+        type: integer
+      - description: Id of the session
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.SessionInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get sessions by id if owner or acting as admin
+      tags:
+      - session requiresAuth supportsAdmin
+  /session/{id}/stop:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Admins can POST this endpoint to stop any session
+        Might be moved to PATCH /session/{id}
+      parameters:
+      - description: Session id of the session to stop
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Stop a session with specific id
+      tags:
+      - session requiresAuth requiresAdmin
+  /session/current:
+    get:
+      consumes:
+      - application/json
+      description: Any user can query this endpoint for their own session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get your current session
+      tags:
+      - session requiresAuth supportsAdmin
+  /session/stop:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Any user can POST this endpoint to stop their own session.
+        Might be moved to PATCH /session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "404":
+          description: no current session
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Stop your own sesssion
+      tags:
+      - session requiresAuth
   /user:
     get:
       consumes:
