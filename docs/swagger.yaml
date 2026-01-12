@@ -141,6 +141,15 @@ definitions:
         example: 1.0.0
         type: string
     type: object
+  handlers.PostSessionBody:
+    properties:
+      device_id:
+        description: '@Description'
+        type: integer
+      question:
+        description: '@Description'
+        type: string
+    type: object
   handlers.SessionInfo:
     properties:
       date:
@@ -297,20 +306,15 @@ paths:
       description: Any user can POST this endpoint to start a session if they dont
         have an active session
       parameters:
-      - description: Id of the device to start the session on.
+      - description: |-
+          device id and question to use for the session
+          `device_id`: Id of the device to start the session on.
+          `question`: Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created.
         in: body
-        name: device_id
+        name: session_info
         required: true
         schema:
-          type: string
-      - description: Question to start the session id with. If identical question
-          already exists in the database, it is used. If it doesnt exist a new entry
-          is created.
-        in: body
-        name: question
-        required: true
-        schema:
-          type: string
+          $ref: '#/definitions/handlers.PostSessionBody'
       produces:
       - application/json
       responses:
@@ -352,7 +356,7 @@ paths:
       - application/json
       description: |-
         Any user can query this endpoint for their own sessions
-        Privileged users can add asRole=1 query parameter to act with their privileges
+        Privileged users can add `asRole=1` query parameter to act with their privileges
       parameters:
       - default: 0
         description: Try to act as this role (will cause 403 if you do not have this
@@ -407,7 +411,7 @@ paths:
       - application/json
       description: |-
         Admins can POST this endpoint to stop any session
-        Might be moved to PATCH /session/{id}
+        Might be moved to PATCH `/session/{id}`
       parameters:
       - description: Session id of the session to stop
         in: path
@@ -487,7 +491,7 @@ paths:
       - application/json
       description: |-
         Any user can POST this endpoint to stop their own session.
-        Might be moved to PATCH /session
+        Might be moved to PATCH `/session`
       produces:
       - application/json
       responses:

@@ -169,21 +169,12 @@ const docTemplate = `{
                 "summary": "Start a new session if no active one is present",
                 "parameters": [
                     {
-                        "description": "Id of the device to start the session on.",
-                        "name": "device_id",
+                        "description": "device id and question to use for the session\n` + "`" + `device_id` + "`" + `: Id of the device to start the session on.\n` + "`" + `question` + "`" + `: Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created.",
+                        "name": "session_info",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created.",
-                        "name": "question",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/handlers.PostSessionBody"
                         }
                     }
                 ],
@@ -300,7 +291,7 @@ const docTemplate = `{
         },
         "/session/stop": {
             "post": {
-                "description": "Any user can POST this endpoint to stop their own session.\nMight be moved to PATCH /session",
+                "description": "Any user can POST this endpoint to stop their own session.\nMight be moved to PATCH ` + "`" + `/session` + "`" + `",
                 "consumes": [
                     "application/json"
                 ],
@@ -347,7 +338,7 @@ const docTemplate = `{
         },
         "/session/{id}": {
             "get": {
-                "description": "Any user can query this endpoint for their own sessions\nPrivileged users can add asRole=1 query parameter to act with their privileges",
+                "description": "Any user can query this endpoint for their own sessions\nPrivileged users can add ` + "`" + `asRole=1` + "`" + ` query parameter to act with their privileges",
                 "consumes": [
                     "application/json"
                 ],
@@ -429,7 +420,7 @@ const docTemplate = `{
         },
         "/session/{id}/stop": {
             "post": {
-                "description": "Admins can POST this endpoint to stop any session\nMight be moved to PATCH /session/{id}",
+                "description": "Admins can POST this endpoint to stop any session\nMight be moved to PATCH ` + "`" + `/session/{id}` + "`" + `",
                 "consumes": [
                     "application/json"
                 ],
@@ -885,6 +876,19 @@ const docTemplate = `{
                 "version": {
                     "type": "string",
                     "example": "1.0.0"
+                }
+            }
+        },
+        "handlers.PostSessionBody": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "description": "@Description",
+                    "type": "integer"
+                },
+                "question": {
+                    "description": "@Description",
+                    "type": "string"
                 }
             }
         },

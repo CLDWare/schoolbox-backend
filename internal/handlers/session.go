@@ -201,7 +201,9 @@ func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 }
 
 type PostSessionBody struct {
-	DeviceID *uint   `json:"device_id"`
+	// @Description
+	DeviceID *uint `json:"device_id"`
+	// @Description
 	Question *string `json:"question"`
 }
 
@@ -212,8 +214,7 @@ type PostSessionBody struct {
 // @Tags			session requiresAuth
 // @Accept			json
 // @Produce		json
-// @Param			device_id	body		string	true	"Id of the device to start the session on."
-// @Param			question	body		string	true	"Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created."
+// @Param			session_info	body		PostSessionBody	true	"device id and question to use for the session\n`device_id`: Id of the device to start the session on.\n`question`: Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created."
 // @Success		200	{object}	apiResponses.BaseResponse{data=SessionInfo}
 // @Failure		400	{object}	apiResponses.BadRequestError
 // @Failure		401	{object}	apiResponses.UnauthorizedError
@@ -305,7 +306,7 @@ func (h *SessionHandler) StopSession(w http.ResponseWriter, ctx context.Context,
 //
 // @Summary		Stop your own sesssion
 // @Description	Any user can POST this endpoint to stop their own session.
-// @Description Might be moved to PATCH /session
+// @Description Might be moved to PATCH `/session`
 // @Tags			session requiresAuth
 // @Accept			json
 // @Produce		json
@@ -344,7 +345,7 @@ func (h *SessionHandler) PostSessionStop(w http.ResponseWriter, r *http.Request)
 //
 // @Summary		Stop a session with specific id
 // @Description	Admins can POST this endpoint to stop any session
-// @Description Might be moved to PATCH /session/{id}
+// @Description Might be moved to PATCH `/session/{id}`
 // @Tags			session requiresAuth requiresAdmin
 // @Accept			json
 // @Produce		json
@@ -430,7 +431,7 @@ func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Reques
 //
 // @Summary		Get sessions by id if owner or acting as admin
 // @Description	Any user can query this endpoint for their own sessions
-// @Description Privileged users can add asRole=1 query parameter to act with their privileges
+// @Description Privileged users can add `asRole=1` query parameter to act with their privileges
 // @Tags			session requiresAuth supportsAdmin
 // @Accept			json
 // @Produce		json
