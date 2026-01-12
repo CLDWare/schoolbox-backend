@@ -1,0 +1,279 @@
+basePath: /api
+definitions:
+  apiResponses.BaseResponse:
+    properties:
+      data: {}
+      message:
+        example: Ok
+        type: string
+      status:
+        example: 200
+        type: integer
+      success:
+        example: true
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.ForbiddenError:
+    properties:
+      message:
+        default: Forbidden
+        type: string
+      status:
+        default: 403
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.InternalServerError:
+    properties:
+      message:
+        default: Internal Server Error
+        type: string
+      status:
+        default: 500
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.NotFoundError:
+    properties:
+      message:
+        default: Not Found
+        type: string
+      status:
+        default: 404
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.UnauthorizedError:
+    properties:
+      message:
+        example: Invalid or expired session
+        type: string
+      status:
+        default: 401
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  handlers.GetVersionSuccessResponse:
+    properties:
+      environment:
+        example: development
+        type: string
+      name:
+        example: schoolbox-backend
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+  handlers.UserInfo:
+    properties:
+      default_question:
+        type: string
+      display_name:
+        type: string
+      email:
+        format: email
+        type: string
+      google_sub:
+        example: "012345678901234567890"
+        type: string
+      id:
+        type: integer
+      joinedAt:
+        format: date-time
+        type: string
+      name:
+        format: name
+        type: string
+      role:
+        type: integer
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: The API for Schoolbox.
+  license:
+    name: MIT
+    url: https://mit-license.org/
+  title: Schoolbox API
+  version: 1.0.0
+paths:
+  /me:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.UserInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get userData about current authenticated user
+      tags:
+      - user requiresAuth
+  /user:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: 20
+        description: Amount of users to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much users to skip before starting to return users
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return users with this role
+        enum:
+        - 0
+        - 1
+        in: query
+        name: role
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.UserInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get userData about all users
+      tags:
+      - user requiresAuth requiresAdmin
+  /user/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get info about a user by using either their id or email
+      parameters:
+      - description: User ID or email
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"email"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.UserInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get user by id
+      tags:
+      - user requiresAuth requiresAdmin
+  /v:
+    get:
+      consumes:
+      - application/json
+      description: Get current api name, version and deployment env (prod, dev)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.GetVersionSuccessResponse'
+              type: object
+      summary: Get the api version
+      tags:
+      - version
+swagger: "2.0"

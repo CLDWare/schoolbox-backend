@@ -11,6 +11,16 @@ import (
 	"github.com/CLDWare/schoolbox-backend/internal/middleware"
 )
 
+//	@title			Schoolbox API
+//	@version		1.0.0
+//	@description	The API for Schoolbox.
+
+//	@license.name	MIT
+//	@license.url	https://mit-license.org/
+
+//	@host		localhost:8000
+//	@BasePath	/api
+
 // API holds the API dependencies
 type API struct {
 	database              *gorm.DB

@@ -1,0 +1,423 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "The API for Schoolbox.",
+        "title": "Schoolbox API",
+        "contact": {},
+        "license": {
+            "name": "MIT",
+            "url": "https://mit-license.org/"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8000",
+    "basePath": "/api",
+    "paths": {
+        "/me": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user requiresAuth"
+                ],
+                "summary": "Get userData about current authenticated user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.UserInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user requiresAuth requiresAdmin"
+                ],
+                "summary": "Get userData about all users",
+                "parameters": [
+                    {
+                        "maximum": 20,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Amount of users to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "How much users to skip before starting to return users",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            0,
+                            1
+                        ],
+                        "type": "integer",
+                        "description": "Only return users with this role",
+                        "name": "role",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/handlers.UserInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.ForbiddenError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{id}": {
+            "get": {
+                "description": "Get info about a user by using either their id or email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user requiresAuth requiresAdmin"
+                ],
+                "summary": "Get user by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID or email",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "\"id\"",
+                            "\"email\""
+                        ],
+                        "type": "string",
+                        "default": "\"id\"",
+                        "description": "Specify identifier type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.UserInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.ForbiddenError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.NotFoundError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/v": {
+            "get": {
+                "description": "Get current api name, version and deployment env (prod, dev)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "version"
+                ],
+                "summary": "Get the api version",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.GetVersionSuccessResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "apiResponses.BaseResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Ok"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-01-12T21:52:50.253429709+01:00"
+                }
+            }
+        },
+        "apiResponses.ForbiddenError": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "default": "Forbidden"
+                },
+                "status": {
+                    "type": "integer",
+                    "default": 403
+                },
+                "success": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-01-12T21:52:50.253429709+01:00"
+                }
+            }
+        },
+        "apiResponses.InternalServerError": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "default": "Internal Server Error"
+                },
+                "status": {
+                    "type": "integer",
+                    "default": 500
+                },
+                "success": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-01-12T21:52:50.253429709+01:00"
+                }
+            }
+        },
+        "apiResponses.NotFoundError": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "default": "Not Found"
+                },
+                "status": {
+                    "type": "integer",
+                    "default": 404
+                },
+                "success": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-01-12T21:52:50.253429709+01:00"
+                }
+            }
+        },
+        "apiResponses.UnauthorizedError": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Invalid or expired session"
+                },
+                "status": {
+                    "type": "integer",
+                    "default": 401
+                },
+                "success": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-01-12T21:52:50.253429709+01:00"
+                }
+            }
+        },
+        "handlers.GetVersionSuccessResponse": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string",
+                    "example": "development"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "schoolbox-backend"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
+                }
+            }
+        },
+        "handlers.UserInfo": {
+            "type": "object",
+            "properties": {
+                "default_question": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email"
+                },
+                "google_sub": {
+                    "type": "string",
+                    "example": "012345678901234567890"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "joinedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "name": {
+                    "type": "string",
+                    "format": "name"
+                },
+                "role": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

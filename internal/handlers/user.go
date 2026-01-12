@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	contextkeys "github.com/CLDWare/schoolbox-backend/internal/contextKeys"
@@ -28,20 +29,41 @@ func NewUserHandler(cfg *config.Config, db *gorm.DB) *UserHandler {
 	}
 }
 
-func toUserInfo(user models.User) map[string]any {
-	return map[string]any{
-		"id":               user.ID,
-		"email":            user.Email,
-		"google_sub":       user.GoogleSubject,
-		"role":             user.Role,
-		"joinedAt":         user.CreatedAt,
-		"name":             user.Name,
-		"display_name":     user.DisplayName,
-		"default_question": user.DefaultQuestion,
+type UserInfo struct {
+	ID              uint      `json:"id"`
+	Email           string    `json:"email" format:"email"`
+	GoogleSubject   string    `json:"google_sub" example:"012345678901234567890"`
+	Role            uint      `json:"role"`
+	CreatedAt       time.Time `json:"joinedAt" format:"date-time"`
+	Name            string    `json:"name" format:"name"`
+	DisplayName     string    `json:"display_name"`
+	DefaultQuestion string    `json:"default_question"`
+}
+
+func toUserInfo(user models.User) UserInfo {
+	return UserInfo{
+		ID:              user.ID,
+		Email:           user.Email,
+		GoogleSubject:   user.GoogleSubject,
+		Role:            user.Role,
+		CreatedAt:       user.CreatedAt,
+		Name:            user.Name,
+		DisplayName:     user.DisplayName,
+		DefaultQuestion: user.DefaultQuestion,
 	}
 }
 
-// handles GET /me requests
+// GetMe
+//
+// @Summary		Get userData about current authenticated user
+// @Description
+// @Tags			user requiresAuth
+// @Accept			json
+// @Produce		json
+// @Success		200	{object}	apiResponses.BaseResponse{data=UserInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/me [get]
 func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -59,7 +81,21 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(userInfo).Send()
 }
 
-// handles GET /user requests
+// GetUser
+//
+// @Summary		Get userData about all users
+// @Description
+// @Tags			user requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			limit	query		int	false	"Amount of users to return" default(20) maximum(20)
+// @Param			offset	query		int	false	"How much users to skip before starting to return users" default(0) minimum(0)
+// @Param			role	query		int	false	"Only return users with this role" Enums(0,1)
+// @Success		200	{object}	apiResponses.BaseResponse{data=[]UserInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/user [get]
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -109,7 +145,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userInfoArray := []map[string]any{}
+	userInfoArray := []UserInfo{}
 	for _, user := range users {
 		userInfoArray = append(userInfoArray, toUserInfo(user))
 	}
@@ -117,7 +153,21 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(userInfoArray).Send()
 }
 
-// handles GET /user/{id} requests
+// GetUserById
+//
+// @Summary		Get user by id
+// @Description	Get info about a user by using either their id or email
+// @Tags			user requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			id	path		string	true	"User ID or email"
+// @Param			type	query		string	false	"Specify identifier type" Enums("id","email") default("id")
+// @Success		200 {object}	apiResponses.BaseResponse{data=UserInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/user/{id} [get]
 func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed

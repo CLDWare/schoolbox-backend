@@ -2,5 +2,4 @@ bin/
 .env*
 *.db
 
-.vscode
 *.code-workspace

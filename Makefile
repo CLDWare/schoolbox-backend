@@ -40,6 +40,10 @@ deps:
 	go mod tidy
 	go mod download
 
+# generate docs using swaggo
+api-docs:
+	swag init -d ./api/,./internal/handlers/,./internal/types/ -g ./router.go
+
 # Development setup
 dev-setup: deps fmt vet
 
