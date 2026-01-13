@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
@@ -29,19 +30,43 @@ func NewDeviceHandler(cfg *config.Config, db *gorm.DB, websocketHandler *Websock
 	}
 }
 
-func toDeviceInfo(device models.Device) map[string]any {
-	return map[string]any{
-		"id":                device.ID,
-		"latest_login":      device.LatestLogin,
-		"last_seen":         device.LastSeen,
-		"room":              device.Room,
-		"lease_start":       device.LeaseStart,
-		"active_session_id": device.ActiveSessionID,
-		"registration_date": device.RegistrationDate,
+type DeviceInfo struct {
+	ID               uint       `json:"id"`
+	LatestLogin      *time.Time `json:"latest_login"`
+	LastSeen         *time.Time `json:"last_seen"`
+	Room             *string    `json:"room"`
+	LeaseStart       time.Time  `json:"lease_start"`
+	ActiveSessionID  *uint      `json:"active_session_id"`
+	RegistrationDate time.Time  `json:"registration_date"`
+}
+
+func toDeviceInfo(device models.Device) DeviceInfo {
+	return DeviceInfo{
+		ID:               device.ID,
+		LatestLogin:      device.LatestLogin,
+		LastSeen:         device.LastSeen,
+		Room:             device.Room,
+		LeaseStart:       device.LeaseStart,
+		ActiveSessionID:  device.ActiveSessionID,
+		RegistrationDate: device.RegistrationDate,
 	}
 }
 
-// handles GET /device requests
+// GetDevice
+//
+// @Summary		Get all devices
+// @Description	Get DeviceInfo about all devices
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			limit	query		int	false	"Amount of devices to return" default(20) maximum(20)
+// @Param			offset	query		int	false	"How much devices to skip before starting to return devices" default(0) minimum(0)
+// @Param			leased	query		bool	false	"Only return devices with this lease status"
+// @Success		200	{object}	apiResponses.BaseResponse{data=[]DeviceInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/device [get]
 func (h *DeviceHandler) GetDevice(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -95,7 +120,7 @@ func (h *DeviceHandler) GetDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deviceInfoArray := []map[string]any{}
+	deviceInfoArray := []DeviceInfo{}
 	for _, device := range devices {
 		deviceInfoArray = append(deviceInfoArray, toDeviceInfo(device))
 	}
@@ -103,7 +128,21 @@ func (h *DeviceHandler) GetDevice(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(deviceInfoArray).Send()
 }
 
-// handles GET /device/{id} requests
+// GetUserById
+//
+// @Summary		Get device by id
+// @Description	Get info about a device by using its id or room
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			id	path		string	true	"Device ID or Room"
+// @Param			type	query		string	false	"Specify identifier type" Enums("id","room") default("id")
+// @Success		200 {object}	apiResponses.BaseResponse{data=DeviceInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/device/{id} [get]
 func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -123,7 +162,7 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 	case "id":
 		userID, err := strconv.ParseUint(idStr, 10, 0)
 		if err != nil {
-			gecho.BadRequest(w).WithMessage("Invalid user ID, expected positive integer").Send()
+			gecho.BadRequest(w).WithMessage("Invalid device ID, expected positive integer").Send()
 			return
 		}
 		dbQuery = dbQuery.Where("id = ?", userID)
@@ -155,8 +194,22 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 type PostDeviceRegisterBody struct {
 	Pin uint `json:"pin"`
 }
+type PostDeviceRegisterResponse struct {
+	DeviceID uint `json:"device_id"`
+}
 
-// handles POST /device/register requests
+// PostDeviceRegister
+//
+// @Summary		Register a new device
+// @Description	Register a new device using the registration pin
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			registration_data	body		PostDeviceRegisterBody	true	"Registration pin\n`pin`: 4 digit registration pin recieved by the device via websocket API"
+// @Success		200	{object}	apiResponses.BaseResponse{data=PostDeviceRegisterResponse}
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/device/register [post]
 func (h *DeviceHandler) PostDeviceRegister(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -180,8 +233,8 @@ func (h *DeviceHandler) PostDeviceRegister(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	RegistrationPinData := map[string]any{
-		"id": device.ID,
+	RegistrationPinData := PostDeviceRegisterResponse{
+		DeviceID: device.ID,
 	}
 
 	gecho.Created(w).WithData(RegistrationPinData).Send()
@@ -192,7 +245,18 @@ type PostDeviceRelinkBody struct {
 	DeviceID uint `json:"device_id"`
 }
 
-// handles POST /device/relink requests
+// PostDeviceRegister
+//
+// @Summary		Relink a device to an old database entry
+// @Description	Relink a device using the registration pin. WARNING: This will generate a new auth token for the device.
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			registration_data	body		PostDeviceRelinkBody	true	"Registration pin and device ID\n`pin`: 4 digit registration pin recieved by the device via websocket API"
+// @Success		200	{object}	apiResponses.BaseResponse{data=PostDeviceRegisterResponse}
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/device/relink [post]
 func (h *DeviceHandler) PostDeviceRelink(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPost); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -230,8 +294,8 @@ func (h *DeviceHandler) PostDeviceRelink(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	RegistrationPinData := map[string]any{
-		"id": device.ID,
+	RegistrationPinData := PostDeviceRegisterResponse{
+		DeviceID: device.ID,
 	}
 
 	gecho.Created(w).WithData(RegistrationPinData).Send()

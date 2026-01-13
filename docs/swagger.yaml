@@ -129,6 +129,23 @@ definitions:
         format: date-time
         type: string
     type: object
+  handlers.DeviceInfo:
+    properties:
+      active_session_id:
+        type: integer
+      id:
+        type: integer
+      last_seen:
+        type: string
+      latest_login:
+        type: string
+      lease_start:
+        type: string
+      registration_date:
+        type: string
+      room:
+        type: string
+    type: object
   handlers.GetVersionSuccessResponse:
     properties:
       environment:
@@ -140,6 +157,23 @@ definitions:
       version:
         example: 1.0.0
         type: string
+    type: object
+  handlers.PostDeviceRegisterBody:
+    properties:
+      pin:
+        type: integer
+    type: object
+  handlers.PostDeviceRegisterResponse:
+    properties:
+      device_id:
+        type: integer
+    type: object
+  handlers.PostDeviceRelinkBody:
+    properties:
+      device_id:
+        type: integer
+      pin:
+        type: integer
     type: object
   handlers.PostSessionBody:
     properties:
@@ -212,6 +246,191 @@ info:
   title: Schoolbox API
   version: 1.0.0
 paths:
+  /device:
+    get:
+      consumes:
+      - application/json
+      description: Get DeviceInfo about all devices
+      parameters:
+      - default: 20
+        description: Amount of devices to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much devices to skip before starting to return devices
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return devices with this lease status
+        in: query
+        name: leased
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.DeviceInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get all devices
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get info about a device by using its id or room
+      parameters:
+      - description: Device ID or Room
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"room"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.DeviceInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get device by id
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new device using the registration pin
+      parameters:
+      - description: |-
+          Registration pin
+          `pin`: 4 digit registration pin recieved by the device via websocket API
+        in: body
+        name: registration_data
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PostDeviceRegisterBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.PostDeviceRegisterResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Register a new device
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/relink:
+    post:
+      consumes:
+      - application/json
+      description: 'Relink a device using the registration pin. WARNING: This will
+        generate a new auth token for the device.'
+      parameters:
+      - description: |-
+          Registration pin and device ID
+          `pin`: 4 digit registration pin recieved by the device via websocket API
+        in: body
+        name: registration_data
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PostDeviceRelinkBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.PostDeviceRegisterResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Relink a device to an old database entry
+      tags:
+      - device requiresAuth requiresAdmin
+  /login:
+    get:
+      description: Redirect to the google OAuth endpoint
+      responses:
+        "302":
+          description: Found
+      summary: Login with google OAuth
+      tags:
+      - auth
   /me:
     get:
       consumes:
@@ -236,9 +455,20 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/apiResponses.InternalServerError'
-      summary: Get userData about current authenticated user
+      summary: Get UserInfo about current authenticated user
       tags:
       - user requiresAuth
+  /oauth2callback:
+    get:
+      description: |-
+        The callback url for google OAuth that processes the things. Can not be used indivualy (requires google OAuth code)
+        Refer too google OAuth docs for more information.
+      responses:
+        "302":
+          description: Found
+      summary: Callback url for google OAuth
+      tags:
+      - auth
   /session:
     get:
       consumes:
@@ -519,6 +749,7 @@ paths:
     get:
       consumes:
       - application/json
+      description: Get UserInfo about all users
       parameters:
       - default: 20
         description: Amount of users to return
@@ -565,7 +796,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/apiResponses.InternalServerError'
-      summary: Get userData about all users
+      summary: Get all users
       tags:
       - user requiresAuth requiresAdmin
   /user/{id}:
@@ -638,4 +869,25 @@ paths:
       summary: Get the api version
       tags:
       - version
+  /ws:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Open a websocket connection used by devices to communicate with the server.
+        Devices get notified about session changes and send votes via this connection.
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols (WebSocket Upgrade)
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Open a connection to the device websocket API
+      tags:
+      - device_websocket
 swagger: "2.0"

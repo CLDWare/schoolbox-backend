@@ -58,6 +58,13 @@ type GoogleIdTokenClaims struct {
 }
 
 // redirects GET /login requests
+// GetLogin
+//
+// @Summary		Login with google OAuth
+// @Description	Redirect to the google OAuth endpoint
+// @Tags		auth
+// @Response		302
+// @Router			/login [get]
 func (h *AuthenticationHandler) GetLogin(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
@@ -81,6 +88,14 @@ func (h *AuthenticationHandler) GetLogin(w http.ResponseWriter, r *http.Request)
 	http.Redirect(w, r, oauthURL, http.StatusFound)
 }
 
+// GetOAuthCallback
+//
+// @Summary		Callback url for google OAuth
+// @Description	The callback url for google OAuth that processes the things. Can not be used indivualy (requires google OAuth code)
+// @Description Refer too google OAuth docs for more information.
+// @Tags			auth
+// @Response		302
+// @Router			/oauth2callback [get]
 func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed

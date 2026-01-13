@@ -13,6 +13,295 @@
     "host": "localhost:8000",
     "basePath": "/api",
     "paths": {
+        "/device": {
+            "get": {
+                "description": "Get DeviceInfo about all devices",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device requiresAuth requiresAdmin"
+                ],
+                "summary": "Get all devices",
+                "parameters": [
+                    {
+                        "maximum": 20,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Amount of devices to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "How much devices to skip before starting to return devices",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only return devices with this lease status",
+                        "name": "leased",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/handlers.DeviceInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.ForbiddenError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/register": {
+            "post": {
+                "description": "Register a new device using the registration pin",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device requiresAuth requiresAdmin"
+                ],
+                "summary": "Register a new device",
+                "parameters": [
+                    {
+                        "description": "Registration pin\n`pin`: 4 digit registration pin recieved by the device via websocket API",
+                        "name": "registration_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PostDeviceRegisterBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.PostDeviceRegisterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.NotFoundError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/relink": {
+            "post": {
+                "description": "Relink a device using the registration pin. WARNING: This will generate a new auth token for the device.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device requiresAuth requiresAdmin"
+                ],
+                "summary": "Relink a device to an old database entry",
+                "parameters": [
+                    {
+                        "description": "Registration pin and device ID\n`pin`: 4 digit registration pin recieved by the device via websocket API",
+                        "name": "registration_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PostDeviceRelinkBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.PostDeviceRegisterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.NotFoundError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/{id}": {
+            "get": {
+                "description": "Get info about a device by using its id or room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device requiresAuth requiresAdmin"
+                ],
+                "summary": "Get device by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID or Room",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "\"id\"",
+                            "\"room\""
+                        ],
+                        "type": "string",
+                        "default": "\"id\"",
+                        "description": "Specify identifier type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.DeviceInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.ForbiddenError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.NotFoundError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "get": {
+                "description": "Redirect to the google OAuth endpoint",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login with google OAuth",
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
         "/me": {
             "get": {
                 "consumes": [
@@ -24,7 +313,7 @@
                 "tags": [
                     "user requiresAuth"
                 ],
-                "summary": "Get userData about current authenticated user",
+                "summary": "Get UserInfo about current authenticated user",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -55,6 +344,20 @@
                         "schema": {
                             "$ref": "#/definitions/apiResponses.InternalServerError"
                         }
+                    }
+                }
+            }
+        },
+        "/oauth2callback": {
+            "get": {
+                "description": "The callback url for google OAuth that processes the things. Can not be used indivualy (requires google OAuth code)\nRefer too google OAuth docs for more information.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Callback url for google OAuth",
+                "responses": {
+                    "302": {
+                        "description": "Found"
                     }
                 }
             }
@@ -482,6 +785,7 @@
         },
         "/user": {
             "get": {
+                "description": "Get UserInfo about all users",
                 "consumes": [
                     "application/json"
                 ],
@@ -491,7 +795,7 @@
                 "tags": [
                     "user requiresAuth requiresAdmin"
                 ],
-                "summary": "Get userData about all users",
+                "summary": "Get all users",
                 "parameters": [
                     {
                         "maximum": 20,
@@ -676,6 +980,35 @@
                     }
                 }
             }
+        },
+        "/ws": {
+            "get": {
+                "description": "Open a websocket connection used by devices to communicate with the server.\nDevices get notified about session changes and send votes via this connection.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device_websocket"
+                ],
+                "summary": "Open a connection to the device websocket API",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols (WebSocket Upgrade)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -856,6 +1189,32 @@
                 }
             }
         },
+        "handlers.DeviceInfo": {
+            "type": "object",
+            "properties": {
+                "active_session_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "latest_login": {
+                    "type": "string"
+                },
+                "lease_start": {
+                    "type": "string"
+                },
+                "registration_date": {
+                    "type": "string"
+                },
+                "room": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.GetVersionSuccessResponse": {
             "type": "object",
             "properties": {
@@ -870,6 +1229,33 @@
                 "version": {
                     "type": "string",
                     "example": "1.0.0"
+                }
+            }
+        },
+        "handlers.PostDeviceRegisterBody": {
+            "type": "object",
+            "properties": {
+                "pin": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.PostDeviceRegisterResponse": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.PostDeviceRelinkBody": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "integer"
+                },
+                "pin": {
+                    "type": "integer"
                 }
             }
         },

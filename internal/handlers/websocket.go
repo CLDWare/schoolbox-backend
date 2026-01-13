@@ -120,6 +120,17 @@ func sendMessage(ws *websocket.Conn, msg any) error {
 	return err
 }
 
+// InitialiseWebscoket
+//
+// @Summary		Open a connection to the device websocket API
+// @Description	Open a websocket connection used by devices to communicate with the server.
+// @Description Devices get notified about session changes and send votes via this connection.
+// @Tags			device_websocket
+// @Accept       json
+// @Produce      json
+// @Success      101 {string} string "Switching Protocols (WebSocket Upgrade)"
+// @Failure      400 {string} string "Bad Request"
+// @Router       /ws [get]
 func (h *WebsocketHandler) InitialiseWebsocket(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

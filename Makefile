@@ -56,7 +56,7 @@ dev-stop-caddy:
 	caddy stop
 
 # Development run
-dev-run: dev-stop-caddy dev-start-caddy run
+dev-run: dev-start-caddy run
 
 # Build for production
 build-prod:

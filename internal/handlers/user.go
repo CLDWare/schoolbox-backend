@@ -55,7 +55,7 @@ func toUserInfo(user models.User) UserInfo {
 
 // GetMe
 //
-// @Summary		Get userData about current authenticated user
+// @Summary		Get UserInfo about current authenticated user
 // @Description
 // @Tags			user requiresAuth
 // @Accept			json
@@ -83,8 +83,8 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 // GetUser
 //
-// @Summary		Get userData about all users
-// @Description
+// @Summary		Get all users
+// @Description	Get UserInfo about all users
 // @Tags			user requiresAuth requiresAdmin
 // @Accept			json
 // @Produce		json
