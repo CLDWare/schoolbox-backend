@@ -233,6 +233,9 @@ definitions:
       name:
         format: name
         type: string
+      picture_url:
+        format: url
+        type: string
       role:
         type: integer
     type: object

@@ -1348,6 +1348,10 @@ const docTemplate = `{
                     "type": "string",
                     "format": "name"
                 },
+                "picture_url": {
+                    "type": "string",
+                    "format": "url"
+                },
                 "role": {
                     "type": "integer"
                 }

@@ -23,6 +23,7 @@ type User struct {
 	gorm.Model
 	Email           string `gorm:"unique"`
 	GoogleSubject   string `gorm:"unique"` // "sub" field from the OAuth response, should be unique
+	ProfilePicture  string // url to the users pfp (straight from google)
 	Name            string
 	DisplayName     string
 	Role            uint   // 0: default user, 1: admin

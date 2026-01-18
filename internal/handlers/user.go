@@ -33,6 +33,7 @@ type UserInfo struct {
 	ID              uint      `json:"id"`
 	Email           string    `json:"email" format:"email"`
 	GoogleSubject   string    `json:"google_sub" example:"012345678901234567890"`
+	ProfilePicture  string    `json:"picture_url" format:"url"`
 	Role            uint      `json:"role"`
 	CreatedAt       time.Time `json:"joinedAt" format:"date-time"`
 	Name            string    `json:"name" format:"name"`
@@ -45,6 +46,7 @@ func toUserInfo(user models.User) UserInfo {
 		ID:              user.ID,
 		Email:           user.Email,
 		GoogleSubject:   user.GoogleSubject,
+		ProfilePicture:  user.ProfilePicture,
 		Role:            user.Role,
 		CreatedAt:       user.CreatedAt,
 		Name:            user.Name,
