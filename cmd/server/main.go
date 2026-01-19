@@ -10,6 +10,8 @@ import (
 
 	"github.com/CLDWare/schoolbox-backend/api"
 	"github.com/CLDWare/schoolbox-backend/config"
+	"github.com/CLDWare/schoolbox-backend/internal/janitor"
+	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 	"github.com/joho/godotenv"
 )
@@ -29,8 +31,19 @@ func main() {
 	// Load configuration
 	cfg := config.Get()
 
+	// Initialise Database
+	db, err := models.InitialiseDatabase()
+	if err != nil {
+		logger.Err(err)
+		os.Exit(1)
+	}
+
 	// Create API instance
-	apiInstance := api.NewAPI()
+	apiInstance := api.NewAPI(db)
+
+	// Initialize the janitor
+	jan := janitor.NewJanitor(cfg, db, false)
+	jan.Start()
 
 	// Create mux with routes
 	mux := apiInstance.CreateMux()
@@ -40,7 +53,7 @@ func main() {
 
 	// Server configuration
 	server := &http.Server{
-		Addr:         cfg.GetServerAddress(),
+		Addr:         cfg.GetInternalServerAddress(),
 		Handler:      handler,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>device admin page</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        table th {
+            text-align: left;
+        }
+
+        .itemRow {
+            padding: 0px;
+            margin: 0px;
+        }
+    </style>
+</head>
+
+<body class="m-2 bg-neutral-950 text-white p-1">
+    <a href="/api/login">login</a><br>
+
+    <span id="userTableMeta"></span>
+    <table id="userTable" class="table-fixed w-full bg-neutral-900 mb-3">
+        <thead class="border-solid border-gray-300 border-b-2">
+            <tr>
+                <th class="w-64 py-1 text-left">User</th>
+                <th class="w-64 py-1 text-left">Google Id</th>
+                <th class="     py-1 text-left">Default question</th>
+                <th class="w-20 py-1 text-left">Role</th>
+                <th class="w-32 py-1 text-left">Joined at</th>
+            </tr>
+        </thead>
+    </table>
+
+    <span id="deviceTableMeta"></span>
+    <table id="deviceTable" class="table-fixed w-full bg-neutral-900">
+        <thead class="border-solid border-gray-300 border-b-2">
+            <th class="     py-1 text-left">Device</th>
+            <th class="     py-1 text-left">Current session</th>
+            <th class="w-24 py-1 text-left">Last seen</th>
+            <th class="w-28 py-1 text-left">Lastest login</th>
+            <th class="w-32 py-1 text-left">Registrated at</th>
+            <th class="w-32 py-1 text-left"></th> <!-- For buttons -->
+        </thead>
+    </table>
+
+    <span id="sessionTableMeta"></span>
+    <table id="sessionTable" class="table-fixed w-full bg-neutral-900">
+        <thead class="border-solid border-gray-300 border-b-2">
+            <th class="w-24 py-1 text-left">Session</th>
+            <th class="     py-1 text-left">Question</th>
+            <th class="w-24 py-1 text-left">Date</th>
+            <th class="w-28 py-1 text-left">Stopped at</th>
+            <th class="w-28 py-1 text-left">User</th>
+            <th class="w-28 py-1 text-left">Device</th>
+        </thead>
+    </table>
+    <script type="module">
+        const API_URL = "/api";
+
+        const userTable = document.getElementById("userTable");
+        const userTableMeta = document.getElementById("userTableMeta");
+        const deviceTable = document.getElementById("deviceTable");
+        const deviceTableMeta = document.getElementById("deviceTableMeta");
+        const sessionTable = document.getElementById("sessionTable");
+        const sessionTableMeta = document.getElementById("sessionTableMeta");
+
+        (async function () {
+            const res = await fetch(API_URL + "/user", {
+                method: "GET"
+            });
+            let body = await res.json();
+            console.log(body);
+            let users = body.data
+            console.log("users", users);
+
+            const updated = new Date(body.timestamp)
+            const date = updated.toISOString().slice(0, 10)
+            const time = updated.toISOString().slice(11, 16)
+            const isToday = date == new Date().toISOString().slice(0, 10)
+            userTableMeta.innerText = `${time} ${isToday ? "today" : date}`
+
+            for (let i = 0; i < users.length; i++) {
+                const user = users[i]
+                let row = document.createElement("tr")
+                row.classList.add("itemRow")
+
+                let nameData = document.createElement("td")
+
+                let usernameSpan = document.createElement("span")
+                usernameSpan.classList.add("font-semibold")
+                usernameSpan.innerText = user.display_name
+                nameData.appendChild(usernameSpan)
+
+                nameData.appendChild(document.createElement("br"))
+
+                let emailSpan = document.createElement("span")
+                emailSpan.innerText = user.email
+                nameData.appendChild(emailSpan)
+
+                row.appendChild(nameData)
+
+                let googleIdData = document.createElement("td")
+                googleIdData.innerText = user.google_sub
+                row.appendChild(googleIdData)
+
+                let defaultQuestionData = document.createElement("td")
+                defaultQuestionData.classList.add(
+                    "text-nowrap",
+                    "truncate",
+                    "max-w-1"
+                )
+                defaultQuestionData.innerText = user.default_question
+                defaultQuestionData.title = user.default_question
+                row.appendChild(defaultQuestionData)
+
+
+                let roleData = document.createElement("td")
+                roleData.innerText = user.role
+                row.appendChild(roleData)
+
+                let joinedAtData = document.createElement("td")
+                const joinedAt = new Date(user.joinedAt)
+                const formattedDate = joinedAt.toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                joinedAtData.innerText = formattedDate
+                row.appendChild(joinedAtData)
+
+                userTable.appendChild(row)
+            }
+        })();
+
+
+        (async function () {
+            const res = await fetch(API_URL + "/device", {
+                method: "GET"
+            });
+            let body = await res.json();
+            console.log(body);
+            let devices = body.data
+            console.log("devices", devices);
+
+            const updated = new Date(body.timestamp)
+            const date = updated.toISOString().slice(0, 10)
+            const time = updated.toISOString().slice(11, 16)
+            const isToday = date == new Date().toISOString().slice(0, 10)
+            deviceTableMeta.innerText = `${time} ${isToday ? "today" : date}`
+
+            for (let i = 0; i < devices.length; i++) {
+                const device = devices[i]
+                let row = document.createElement("tr")
+                row.classList.add("itemRow")
+
+                let nameData = document.createElement("td")
+
+                let roomSpan = document.createElement("span")
+                roomSpan.classList.add("font-semibold")
+                if (device.room) {
+                    roomSpan.innerText = device.room
+                } else {
+                    roomSpan.innerText = "No room set"
+                    roomSpan.classList.add("italic")
+                }
+                nameData.appendChild(roomSpan)
+
+                nameData.appendChild(document.createElement("br"))
+
+                let idSpan = document.createElement("span")
+                idSpan.innerText = `Id:${device.id}`
+                nameData.appendChild(idSpan)
+
+                row.appendChild(nameData)
+
+                let sessionData = document.createElement("td")
+                row.appendChild(sessionData)
+                let sessionSpan = document.createElement("span")
+                sessionData.appendChild(sessionSpan)
+                sessionSpan.classList.add(
+                    "flex",
+                    "items-center",
+                    "justify-between"
+                )
+                let sessionQuestion = document.createElement("span")
+                sessionSpan.appendChild(sessionQuestion)
+                if (device.active_session_id) {
+
+                    const sessionId = device.active_session_id
+                    const sessionRes = await fetch(API_URL + "/session/" + sessionId, {
+                        method: "GET"
+                    });
+                    let sessionBody = await sessionRes.json();
+                    console.log(sessionBody);
+                    let sessionInfo = sessionBody.data
+                    console.log("session", sessionInfo);
+
+                    sessionQuestion.innerText = sessionInfo.question
+
+                    let sessionStopButton = document.createElement("button")
+                    sessionSpan.appendChild(sessionStopButton)
+                    sessionStopButton.classList.add("text-center", "mr-3", "p-1", "border-solid", "border-neutral-800", "border-2", "rounded-lg", "hover:bg-neutral-800", "onclick")
+                    sessionStopButton.innerText = "Stop"
+                    sessionStopButton.addEventListener("click", async (e) => {
+                        console.log(`Stopping session ${sessionInfo.id} on device ${sessionInfo.deviceID}`)
+
+                        const res = await fetch(`${API_URL}/session/${sessionInfo.id}/stop`, {
+                            method: "POST",
+                            // body: JSON.stringify(reqBody),
+                        });
+                    })
+                } else {
+                    sessionQuestion.innerText = "none"
+                    sessionQuestion.classList.add("italic", "text-gray-100")
+                }
+
+                let lastSeenData = document.createElement("td")
+                const lastSeen = new Date(device.last_seen)
+                lastSeenData.innerText = lastSeen.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                row.appendChild(lastSeenData)
+
+                let latestLoginData = document.createElement("td")
+                const latestLogin = new Date(device.latest_login)
+                latestLoginData.innerText = lastSeen.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                row.appendChild(latestLoginData)
+
+                let registeredAtData = document.createElement("td")
+                const registeredAt = new Date(device.last_seen)
+                registeredAtData.innerText = lastSeen.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                row.appendChild(registeredAtData)
+
+                let relinkData = document.createElement("td")
+                let relinkButton = document.createElement("button")
+                relinkButton.classList.add("text-center", "p-1", "border-solid", "border-neutral-800", "border-2", "rounded-lg", "hover:bg-neutral-800", "onclick")
+                relinkButton.innerText = "Relink"
+                relinkButton.addEventListener("click", async (e) => {
+                    let pin = prompt(`Enter registration pin to link device to ${device.id}`);
+                    if (pin == null) {
+                        console.log("Relink aborted: pin entering canceled")
+                        return
+                    }
+                    pin = Number(pin)
+                    if (isNaN(pin)) {
+                        alert("Please enter a valid 4 digit code")
+                        return
+                    }
+                    if (pin < 0 || pin > 9999) {
+                        alert("Please enter a valid 4 digit code")
+                        return
+                    }
+
+                    const reqBody = {
+                        "pin": pin,
+                        "device_id": device.id,
+                    }
+                    console.log("Prepared POST /api/device/relink", reqBody)
+
+                    let confirmed = confirm("Are you sure you want to relink?\nOnly do this if no physical device is linked to this database entry.\nTHIS ACTION CAN NOT BE REVERSED!")
+                    if (confirmed != true) {
+                        console.log("Relink aborted: not confirmed")
+                        return
+                    }
+
+                    const res = await fetch(API_URL + "/device/relink", {
+                        method: "POST",
+                        body: JSON.stringify(reqBody),
+                    });
+                    let body = await res.json();
+                    console.log(body);
+                    if (!res.ok) {
+                        alert(`HTTP ${res.status} ${res.statusText} while relinking\n${body.message}`)
+                        return
+                    }
+                    alert(`Succesfully relinked ${body.data.id}`);
+                })
+
+                relinkData.appendChild(relinkButton)
+                row.appendChild(relinkData)
+
+                deviceTable.appendChild(row)
+            }
+        })();
+
+        (async function () {
+            const res = await fetch(API_URL + "/session?asRole=1", {
+                method: "GET"
+            });
+            let body = await res.json();
+            console.log(body);
+            let sessions = body.data
+            console.log("sessions", sessions);
+
+            const updated = new Date(body.timestamp)
+            const date = updated.toISOString().slice(0, 10)
+            const time = updated.toISOString().slice(11, 16)
+            const isToday = date == new Date().toISOString().slice(0, 10)
+            sessionTableMeta.innerText = `${time} ${isToday ? "today" : date}`
+
+            const lim = 20
+            let offset = 0
+            while (sessions.length == (offset+1)*lim) {
+                offset++
+                console.log(`Query limit filled, querying more (total=${sessions.length}) (offset=${offset})`)
+                const res = await fetch(`${API_URL}/session?asRole=1&offset=${offset*20}`, {
+                    method: "GET"
+                });
+                let body = await res.json();
+                sessions.concat(body.data);
+                console.log(`queried more sessions (count=${body.data.length})`)
+            }
+
+            for (let i = 0; i < sessions.length; i++) {
+                const session = sessions[i]
+                let row = document.createElement("tr")
+                sessionTable.appendChild(row)
+                row.classList.add("itemRow")
+
+                let sessionIdData = document.createElement("td")
+                row.appendChild(sessionIdData)
+                sessionIdData.innerText = session.id
+
+                let questionData = document.createElement("td")
+                row.appendChild(questionData)
+                questionData.classList.add(
+                    "text-nowrap",
+                    "truncate",
+                    "max-w-1"
+                )
+                questionData.innerText = session.question
+
+                let dateData = document.createElement("td")
+                row.appendChild(dateData)
+                dateData.innerText = new Date(session.date).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+
+                let stoppedAtData = document.createElement("td")
+                row.appendChild(stoppedAtData)
+                if (session.stopped_at != undefined) {
+                    stoppedAtData.innerText = new Date(session.date).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: '2-digit'
+                    });
+                } else {
+                    stoppedAtData.classList.add("text-neutral-400")
+                    stoppedAtData.innerText = "Ongoing"
+                }
+                let userData = document.createElement("td")
+                row.appendChild(userData)
+                userData.innerText = session.userID
+
+                let deviceData = document.createElement("td")
+                row.appendChild(deviceData)
+                deviceData.innerText = session.deviceID
+            }
+        })();
+
+    </script>
+</body>
+
+</html>

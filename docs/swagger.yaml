@@ -1,0 +1,896 @@
+basePath: /api
+definitions:
+  apiResponses.BadRequestError:
+    properties:
+      message:
+        example: Could not parse 'hi' as int
+        type: string
+      status:
+        default: 400
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.BaseResponse:
+    properties:
+      data: {}
+      message:
+        example: Ok
+        type: string
+      status:
+        example: 200
+        type: integer
+      success:
+        example: true
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.ConflictError:
+    properties:
+      message:
+        default: Conflict
+        type: string
+      status:
+        default: 409
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.ForbiddenError:
+    properties:
+      message:
+        default: Forbidden
+        type: string
+      status:
+        default: 403
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.InternalServerError:
+    properties:
+      message:
+        default: Internal Server Error
+        type: string
+      status:
+        default: 500
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.NotFoundError:
+    properties:
+      message:
+        default: Not Found
+        type: string
+      status:
+        default: 404
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.ServiceUnavailableError:
+    properties:
+      message:
+        default: Service Unavailable
+        type: string
+      status:
+        default: 503
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  apiResponses.UnauthorizedError:
+    properties:
+      message:
+        example: Invalid or expired session
+        type: string
+      status:
+        default: 401
+        type: integer
+      success:
+        default: false
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
+  handlers.DeviceInfo:
+    properties:
+      active_session_id:
+        type: integer
+      id:
+        type: integer
+      last_seen:
+        type: string
+      latest_login:
+        type: string
+      lease_start:
+        type: string
+      registration_date:
+        type: string
+      room:
+        type: string
+    type: object
+  handlers.GetVersionSuccessResponse:
+    properties:
+      environment:
+        example: development
+        type: string
+      name:
+        example: schoolbox-backend
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+  handlers.PostDeviceRegisterBody:
+    properties:
+      pin:
+        type: integer
+    type: object
+  handlers.PostDeviceRegisterResponse:
+    properties:
+      device_id:
+        type: integer
+    type: object
+  handlers.PostDeviceRelinkBody:
+    properties:
+      device_id:
+        type: integer
+      pin:
+        type: integer
+    type: object
+  handlers.PostSessionBody:
+    properties:
+      device_id:
+        description: '@Description'
+        type: integer
+      question:
+        description: '@Description'
+        type: string
+    type: object
+  handlers.SessionInfo:
+    properties:
+      date:
+        format: date-time
+        type: string
+      device_id:
+        type: integer
+      first_answer_time:
+        format: date-time
+        type: string
+      id:
+        type: integer
+      last_answer_time:
+        format: date-time
+        type: string
+      question:
+        type: string
+      question_id:
+        type: integer
+      stopped_at:
+        format: date-time
+        type: string
+      user_id:
+        type: integer
+      votes:
+        items:
+          type: integer
+        type: array
+    type: object
+  handlers.UserInfo:
+    properties:
+      default_question:
+        type: string
+      display_name:
+        type: string
+      email:
+        format: email
+        type: string
+      google_sub:
+        example: "012345678901234567890"
+        type: string
+      id:
+        type: integer
+      joinedAt:
+        format: date-time
+        type: string
+      name:
+        format: name
+        type: string
+      picture_url:
+        format: url
+        type: string
+      role:
+        type: integer
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: The API for Schoolbox.
+  license:
+    name: MIT
+    url: https://mit-license.org/
+  title: Schoolbox API
+  version: 1.0.0
+paths:
+  /device:
+    get:
+      consumes:
+      - application/json
+      description: Get DeviceInfo about all devices
+      parameters:
+      - default: 20
+        description: Amount of devices to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much devices to skip before starting to return devices
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return devices with this lease status
+        in: query
+        name: leased
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.DeviceInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get all devices
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get info about a device by using its id or room
+      parameters:
+      - description: Device ID or Room
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"room"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.DeviceInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get device by id
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new device using the registration pin
+      parameters:
+      - description: |-
+          Registration pin
+          `pin`: 4 digit registration pin recieved by the device via websocket API
+        in: body
+        name: registration_data
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PostDeviceRegisterBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.PostDeviceRegisterResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Register a new device
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/relink:
+    post:
+      consumes:
+      - application/json
+      description: 'Relink a device using the registration pin. WARNING: This will
+        generate a new auth token for the device.'
+      parameters:
+      - description: |-
+          Registration pin and device ID
+          `pin`: 4 digit registration pin recieved by the device via websocket API
+        in: body
+        name: registration_data
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PostDeviceRelinkBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.PostDeviceRegisterResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Relink a device to an old database entry
+      tags:
+      - device requiresAuth requiresAdmin
+  /login:
+    get:
+      description: Redirect to the google OAuth endpoint
+      responses:
+        "302":
+          description: Found
+      summary: Login with google OAuth
+      tags:
+      - auth
+  /me:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.UserInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get UserInfo about current authenticated user
+      tags:
+      - user requiresAuth
+  /oauth2callback:
+    get:
+      description: |-
+        The callback url for google OAuth that processes the things. Can not be used indivualy (requires google OAuth code)
+        Refer too google OAuth docs for more information.
+      responses:
+        "302":
+          description: Found
+      summary: Callback url for google OAuth
+      tags:
+      - auth
+  /session:
+    get:
+      consumes:
+      - application/json
+      description: Get all sessions owned by the current user or for all users if
+        acting as admin
+      parameters:
+      - default: 0
+        description: Try to act as this role (will cause 403 if you do not have this
+          role)
+        enum:
+        - 0
+        - 1
+        in: query
+        name: asRole
+        type: integer
+      - default: 20
+        description: Amount of sessions to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much sessions to skip before starting to return sessions
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return sessions that use this question
+        in: query
+        name: questionID
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.SessionInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get sessions owned by the current user or all users
+      tags:
+      - session requiresAuth supportsAdmin
+    post:
+      consumes:
+      - application/json
+      description: Any user can POST this endpoint to start a session if they dont
+        have an active session
+      parameters:
+      - description: |-
+          device id and question to use for the session
+          `device_id`: Id of the device to start the session on.
+          `question`: Question to start the session id with. If identical question already exists in the database, it is used. If it doesnt exist a new entry is created.
+        in: body
+        name: session_info
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PostSessionBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apiResponses.BadRequestError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "409":
+          description: User already has an active session
+          schema:
+            $ref: '#/definitions/apiResponses.ConflictError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+        "503":
+          description: Requested device is not available
+          schema:
+            $ref: '#/definitions/apiResponses.ServiceUnavailableError'
+      summary: Start a new session if no active one is present
+      tags:
+      - session requiresAuth
+  /session/{id}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Any user can query this endpoint for their own sessions
+        Privileged users can add `asRole=1` query parameter to act with their privileges
+      parameters:
+      - default: 0
+        description: Try to act as this role (will cause 403 if you do not have this
+          role)
+        enum:
+        - 0
+        - 1
+        in: query
+        name: asRole
+        type: integer
+      - description: Id of the session
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.SessionInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get sessions by id if owner or acting as admin
+      tags:
+      - session requiresAuth supportsAdmin
+  /session/{id}/stop:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Admins can POST this endpoint to stop any session
+        Might be moved to PATCH `/session/{id}`
+      parameters:
+      - description: Session id of the session to stop
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Stop a session with specific id
+      tags:
+      - session requiresAuth requiresAdmin
+  /session/current:
+    get:
+      consumes:
+      - application/json
+      description: Any user can query this endpoint for their own session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get your current session
+      tags:
+      - session requiresAuth supportsAdmin
+  /session/stop:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Any user can POST this endpoint to stop their own session.
+        Might be moved to PATCH `/session`
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.SessionInfo'
+              type: object
+        "404":
+          description: no current session
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Stop your own sesssion
+      tags:
+      - session requiresAuth
+  /user:
+    get:
+      consumes:
+      - application/json
+      description: Get UserInfo about all users
+      parameters:
+      - default: 20
+        description: Amount of users to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much users to skip before starting to return users
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return users with this role
+        enum:
+        - 0
+        - 1
+        in: query
+        name: role
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.UserInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get all users
+      tags:
+      - user requiresAuth requiresAdmin
+  /user/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get info about a user by using either their id or email
+      parameters:
+      - description: User ID or email
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"email"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.UserInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get user by id
+      tags:
+      - user requiresAuth requiresAdmin
+  /v:
+    get:
+      consumes:
+      - application/json
+      description: Get current api name, version and deployment env (prod, dev)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.GetVersionSuccessResponse'
+              type: object
+      summary: Get the api version
+      tags:
+      - version
+  /ws:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Open a websocket connection used by devices to communicate with the server.
+        Devices get notified about session changes and send votes via this connection.
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols (WebSocket Upgrade)
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Open a connection to the device websocket API
+      tags:
+      - device_websocket
+swagger: "2.0"

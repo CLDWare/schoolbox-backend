@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,12 +21,23 @@ type Config struct {
 
 	// Application configuration
 	App AppConfig `json:"app"`
+
+	// Websocket heartbeat configuration
+	Heartbeat WebsocketHearbeatConfig `json:"heartbeat"`
+
+	// Google OAuth configuration
+	OAuth OAuthConfig `json:"google_oauth"`
+
+	// Janitor configuration
+	Janitor JanitorConfig `json:"janitor"`
 }
 
 // ServerConfig holds server-specific configuration
 type ServerConfig struct {
 	Host         string        `json:"host"`
 	Port         string        `json:"port"`
+	ExternalHost string        `json:"external_host"`
+	ExternalPort string        `json:"external_port"`
 	ReadTimeout  time.Duration `json:"read_timeout"`
 	WriteTimeout time.Duration `json:"write_timeout"`
 	IdleTimeout  time.Duration `json:"idle_timeout"`
@@ -42,6 +54,26 @@ type AppConfig struct {
 	Version     string `json:"version"`
 	Environment string `json:"environment"`
 	Debug       bool   `json:"debug"`
+}
+
+// WebsocketHearbeatConfig holds websocket heartbeat-specific configuration
+type WebsocketHearbeatConfig struct {
+	CheckInterval time.Duration `json:"check_interval"` // Interval at which hearbeat times are checked
+	Delay         time.Duration `json:"delay"`          // Time after last message before triggering first heartbeat
+	Interval      time.Duration `json:"interval"`       // Time between heartbeats
+	KillDelay     time.Duration `json:"kill_delay"`     // Time after last message before killing connection
+}
+
+type OAuthConfig struct {
+	ClientId        string        `json:"client_id"`
+	ClientSecret    string        // ENV only or something idk
+	SessionDuration time.Duration `json:"session_duration"` // for how long is an authenticated session valid
+}
+
+// JanitorConfig holds janitor-specific configuration
+type JanitorConfig struct {
+	ShortCleanInterval time.Duration `json:"short_clean_interval"`
+	FullCleanInterval  time.Duration `json:"full_clean_interval"`
 }
 
 var (
@@ -78,6 +110,8 @@ func loadConfig() *Config {
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "localhost"),
 			Port:         getEnv("SERVER_PORT", "8080"),
+			ExternalHost: getEnv("SERVER_EXTERNAL_HOST", "localhost"),
+			ExternalPort: getEnv("SERVER_EXTERNAL_HOST", "8000"),
 			ReadTimeout:  getEnvAsDuration("SERVER_READ_TIMEOUT", 15*time.Second),
 			WriteTimeout: getEnvAsDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),
 			IdleTimeout:  getEnvAsDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
@@ -90,6 +124,21 @@ func loadConfig() *Config {
 			Version:     getEnv("APP_VERSION", "1.0.0"),
 			Environment: getEnv("ENV", "development"),
 			Debug:       getEnvAsBool("DEBUG", false),
+		},
+		Heartbeat: WebsocketHearbeatConfig{
+			CheckInterval: getEnvAsDuration("HEARBEAT_CHECK_INTERVAL", 2*time.Second),
+			Delay:         getEnvAsDuration("HEARTBEAT_DELAY", 30*time.Second),
+			Interval:      getEnvAsDuration("HEARTBEAT_INTERVAL", 10*time.Second),
+			KillDelay:     getEnvAsDuration("HEARTBEAT_KILL_DELAY", 60*time.Second),
+		},
+		OAuth: OAuthConfig{ // well actually we need these
+			ClientId:        getEnv("GOOGLE_CLIENT_ID", "123456789012-abcdefg1234567890hijklmnop.apps.googleusercontent.com"),
+			ClientSecret:    getEnv("GOOGLE_CLIENT_SECRET", ""),
+			SessionDuration: getEnvAsDuration("AUTH_SESSION_DURATION", 24*time.Hour),
+		},
+		Janitor: JanitorConfig{
+			ShortCleanInterval: getEnvAsDuration("JANITOR_SHORT_CLEAN_INTERVAL", 1*time.Hour),
+			FullCleanInterval:  getEnvAsDuration("JANITOR_FULL_CLEAN_INTERVAL", 24*time.Hour),
 		},
 	}
 
@@ -122,6 +171,19 @@ func (c *Config) validate() error {
 			c.Logging.Level, strings.Join(validLevels, ", "))
 	}
 
+	// Validate OAuth info
+	if ok, err := regexp.Match(`^\d{12}-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$`, []byte(c.OAuth.ClientId)); !ok || err != nil {
+		if err != nil {
+			return fmt.Errorf("invalid GOOGLE_CLIENT_ID: %s. %s", c.OAuth.ClientId, err.Error())
+		}
+		return fmt.Errorf("invalid GOOGLE_CLIENT_ID: %s", c.OAuth.ClientId)
+	}
+	if c.OAuth.ClientSecret != "" {
+		if ok, err := regexp.Match(`^GOCSPX-[A-Za-z0-9_-]+$`, []byte(c.OAuth.ClientSecret)); !ok || err != nil {
+			return fmt.Errorf("invalid GOOGLE_CLIENT_SECRET: %s", c.OAuth.ClientSecret)
+		}
+	}
+
 	return nil
 }
 
@@ -135,8 +197,13 @@ func (c *Config) IsProduction() bool {
 	return c.App.Environment == "production"
 }
 
-// GetServerAddress returns the server address in the format "host:port"
+// GetServerAddress returns the external server address in the format "host:port"
 func (c *Config) GetServerAddress() string {
+	return fmt.Sprintf("%s:%s", c.Server.ExternalHost, c.Server.ExternalPort)
+}
+
+// GetInternalServerAddress returns the internal server address in the format "host:port"
+func (c *Config) GetInternalServerAddress() string {
 	return fmt.Sprintf("%s:%s", c.Server.Host, c.Server.Port)
 }
 

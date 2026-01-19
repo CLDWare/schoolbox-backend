@@ -8,6 +8,10 @@ build:
 run:
 	go run cmd/server/main.go
 
+# Run the janitor sepperatly
+janitor:
+	go run cmd/janitor/main.go
+
 # Run the simple main.go
 run-simple:
 	go run main.go
@@ -36,8 +40,23 @@ deps:
 	go mod tidy
 	go mod download
 
+# generate docs using swaggo
+api-docs:
+	swag init -d ./api/,./internal/handlers/,./internal/types/ -g ./router.go
+
 # Development setup
 dev-setup: deps fmt vet
+
+# Development start caddy
+dev-start-caddy:
+	caddy start
+
+# Development start caddy
+dev-stop-caddy:
+	caddy stop
+
+# Development run
+dev-run: dev-start-caddy run
 
 # Build for production
 build-prod:

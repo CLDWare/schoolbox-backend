@@ -1,0 +1,11 @@
+:8000 {
+	root * /mnt/c/Users/niels/OneDrive/Documenten/projects/CLDWare/schoolbox-backend/
+	
+	handle_path /api/* {
+		reverse_proxy localhost:8080
+	}
+
+	file_server {
+		root static/
+	}
+}

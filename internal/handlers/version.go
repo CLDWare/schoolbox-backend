@@ -19,17 +19,31 @@ func NewVersionHandler(cfg *config.Config) *VersionHandler {
 	}
 }
 
-// GetVersion handles GET /v requests
+type GetVersionSuccessResponse struct {
+	Name        string `example:"schoolbox-backend"`
+	Version     string `example:"1.0.0"`
+	Environment string `example:"development"`
+}
+
+// GetVersion
+//
+// @Summary		Get the api version
+// @Description	Get current api name, version and deployment env (prod, dev)
+// @Tags			version
+// @Accept			json
+// @Produce		json
+// @Success		200	{object} apiResponses.BaseResponse{data=GetVersionSuccessResponse}
+// @Router 			/v		[get]
 func (h *VersionHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
 		return
 	}
 
-	versionInfo := map[string]string{
-		"name":        h.config.App.Name,
-		"version":     h.config.App.Version,
-		"environment": h.config.App.Environment,
+	versionInfo := GetVersionSuccessResponse{
+		Name:        h.config.App.Name,
+		Version:     h.config.App.Version,
+		Environment: h.config.App.Environment,
 	}
 
 	gecho.Success(w).WithData(versionInfo).Send()

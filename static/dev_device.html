@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>dev device</title>
+    <style>
+        /* thank you, https://www.w3schools.com/howto/howto_css_switch.asp */
+        /* The switch - the box around the slider */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        /* Hide default HTML checkbox */
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        /* The slider */
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: plum;
+        }
+
+        input:checked+.slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        /* my css */
+        .statusBar {
+            height: 5vh;
+            display: flex;
+            align-items: center;
+        }
+
+        #connectionStatus::before {
+            content: '';
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 7.5px;
+            background-color: red;
+            margin-right: 5px;
+        }
+
+        #connectionStatus.connected::before {
+            background-color: lawngreen;
+        }
+
+        .wsLog {
+            height: 55vh;
+            background: rgb(229, 229, 229);
+            border: 5px solid rgb(211, 211, 211);
+            border-radius: 15px;
+            overflow: scroll;
+        }
+
+        .wsLog>div {
+            border-bottom: 1px solid rgb(200, 200, 200);
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .timestamp {
+            color: gray;
+            margin-right: .25em;
+        }
+
+
+        .server,
+        .device {
+            display: inline-block;
+            width: 3em;
+        }
+
+        .server {
+            color: chocolate;
+        }
+
+        .device {
+            color: cornflowerblue;
+        }
+
+        .autoMsg,.flowMsg {
+            color: white;
+            background-color: plum;
+            padding: 4px 6px;
+            border-radius: 15px;
+            margin-left: auto;
+        }
+        .flowMsg {
+            background-color: burlywood;
+        }
+
+        .deviceData {
+            height: 9.5vh;
+            margin-top: .5vh;
+            background: rgb(229, 229, 229);
+            border: 5px solid rgb(211, 211, 211);
+            border-radius: 15px;
+            overflow: scroll;
+        }
+
+        .deviceData>span {
+            white-space: nowrap;
+        }
+
+        textarea#rawCommand {
+            height: 20vh;
+            width: calc(100% - 8px);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="statusBar" class="statusBar">
+        <span id="connectionStatus"></span>
+        <label class="switch" style="margin-left:auto;">
+            <input type="checkbox" id="autoPong" checked>
+            <span class="slider round"></span>
+        </label>
+    </div>
+    <div id="wsLog" class="wsLog"></div>
+    <div id="deviceData" class="deviceData"></div>
+    <div id="startFlowDiv">
+        <select id="flowSelect">
+            <option value="registrationFlow">Registration</option>
+            <option value="authenticationFlow">Authentication</option>
+            <option value="rawFlow">Enter Raw Command</option>
+            <option value="pingFlow">ping</option>
+            <option value="pongFlow">pong</option>
+        </select>
+        <button id="startFlowBtn">Start flow</button>
+    </div>
+    <div id="registrationFlowDiv" style="display: none;">
+        <p>Registration pin: <span id="registrationPin"></span></p>
+    </div>
+    <div id="authenticationFlowDiv" style="display: none;">
+        <p>Authentication nonce: <span id="authenticationNonce"></span></p><br>
+        <input id="authenticationId" placeholder="device id">
+        <button id="authenticationStart">Start authenticating</button><br>
+        <input id="authenticationToken" placeholder="token">
+        <button id="authenticationSubmit">Authenticate</button>
+    </div>
+    <div id="rawFlowDiv" style="display: none;">
+        <textarea id="rawCommand"></textarea><br>
+        <button id="sendRawCommand">Send</button>
+        <button id="closeRawFlow">Close</button>
+    </div>
+    <script>
+        const API_URL = "http://localhost:8000/api";
+        let autoPong = true;
+        const autoPongInput = document.getElementById("autoPong");
+        autoPongInput.addEventListener("change", (e) => autoPong = autoPongInput.checked)
+
+        let deviceData = {};
+        const deviceDataDiv = document.getElementById("deviceData");
+        function updateDeviceData(key, value) {
+            deviceData[key] = value;
+            console.log(deviceData)
+
+            deviceDataDiv.innerHTML = "";
+            for (const key in deviceData) {
+                if (!Object.hasOwn(deviceData, key)) continue;
+                const value = deviceData[key];
+
+                const span = document.createElement("span");
+                span.innerText = `${key}: ${value}`;
+                deviceDataDiv.appendChild(span);
+                deviceDataDiv.appendChild(document.createElement("br"));
+            }
+        };
+
+        function sendMessage(data, auto) {
+            const div = document.createElement("div");
+
+            const timestamp = document.createElement("span");
+            datetext = new Date(Date.now()).toTimeString().split(' ')[0];
+            timestamp.innerText = `[${datetext}]`;
+            timestamp.classList.add("timestamp");
+            div.appendChild(timestamp);
+
+            const type = document.createElement("span");
+            type.innerText = "device";
+            type.classList.add("device");
+            div.appendChild(type);
+
+            const message = document.createElement("span");
+            message.innerText = data;
+            div.appendChild(message);
+
+            if (auto == true) {
+                const autoSpan = document.createElement("span");
+                autoSpan.innerText = "auto";
+                autoSpan.classList.add("autoMsg");
+                div.appendChild(autoSpan);
+            } else if (auto != null) {
+                const flowSpan = document.createElement("span");
+                flowSpan.innerText = auto;
+                flowSpan.classList.add("flowMsg");
+                div.appendChild(flowSpan);
+            };
+
+            appendLog(div);
+            return ws.send(data);
+        }
+
+        let handleWsMessage = (data) => { }
+        const wsLogDiv = document.getElementById("wsLog");
+        function appendLog(el) {
+            wsLogDiv.appendChild(el);
+            el.scrollIntoView({
+                "behavior": "smooth",
+            });
+        }
+        let ws
+        function connectWebsocket() {
+            ws = new WebSocket(API_URL + "/ws");
+
+            const connectionStatusSpan = document.getElementById("connectionStatus");
+            ws.addEventListener("open", () => {
+                console.log("Websocket connection established", ws);
+
+                connectionStatusSpan.innerText = "Connected";
+                connectionStatusSpan.classList.add("connected");
+            });
+            ws.addEventListener("close", () => {
+                console.log("Websocket connection closed", ws);
+
+                connectionStatusSpan.innerText = "Disconnected"
+                connectionStatusSpan.classList.remove("connected")
+
+                setTimeout(connectWebsocket, 1000)
+            });
+
+            ws.addEventListener("message", (event) => {
+                console.log("Websocket message recieved:", event.data);
+                const div = document.createElement("div");
+
+                const timestamp = document.createElement("span");
+                datetext = new Date(Date.now()).toTimeString().split(' ')[0];
+                timestamp.innerText = `[${datetext}]`;
+                timestamp.classList.add("timestamp");
+                div.appendChild(timestamp);
+
+                const type = document.createElement("span");
+                type.innerText = "server";
+                type.classList.add("server");
+                div.appendChild(type);
+
+                const message = document.createElement("span");
+                message.innerText = event.data;
+                div.appendChild(message);
+
+                appendLog(div);
+
+                let data = JSON.parse(event.data)
+
+                if (data.c == "ping") {
+                    if (autoPong) {
+                        sendMessage(JSON.stringify({ "c": "pong" }), true)
+                    }
+                } else {
+                    if (handleWsMessage) {
+                        handleWsMessage(data)
+                    }
+                };
+            });
+        }
+        connectWebsocket();
+
+        let stateFlows = {};
+
+        const registrationFlowDiv = document.getElementById("registrationFlowDiv");
+        const registrationPinSpan = document.getElementById("registrationPin");
+        const deviceIdSpan = document.getElementById("deviceId");
+        const deviceTokenSpan = document.getElementById("deviceToken")
+        function handleRegistrationMessages(data) {
+            if (data.c == "reg_pin") {
+                registrationPinSpan.innerText = data.d.pin
+            } else if (data.c == "reg_ok") {
+                updateDeviceData("deviceId", data.d.id);
+                updateDeviceData("deviceToken", data.d.token);
+                registrationFlowDiv.style.display = "none";
+                startFlowDiv.style.display = "inherit";
+                updateFlow();
+            }
+        }
+        stateFlows.registrationFlow = async () => {
+            registrationFlowDiv.style.display = "inherit";
+            handleWsMessage = handleRegistrationMessages;
+
+            sendMessage(JSON.stringify({ "c": "reg_start" }), "registration");
+        };
+
+        const authenticationFlowDiv = document.getElementById("authenticationFlowDiv");
+        const authenticationNonceSpan = document.getElementById("authenticationNonce");
+        const authenticationIdInput = document.getElementById("authenticationId");
+        const authenticationStartButton = document.getElementById("authenticationStart");
+        const authenticationTokenInput = document.getElementById("authenticationToken");
+        const authenticationSubmitButton = document.getElementById("authenticationSubmit");
+        authenticationStartButton.addEventListener("click", (event) => {
+            sendMessage(JSON.stringify({
+                "c": "auth_start",
+                "d": {
+                    "id": +authenticationIdInput.value
+                }
+            }), "authentication");
+            authenticationStartButton.disabled = true
+            authenticationSubmitButton.disabled = false
+        });
+        function toHex(data) {
+            return Array.from(data).map((b) => b.toString(16).padStart(2, "0")).join("");
+        }
+        async function generateHMAC(key, message) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                "raw",
+                keyData,
+                { name: "HMAC", hash: { name: "SHA-256" } },
+                false,
+                ["sign"],
+            );
+
+            const signature = await crypto.subtle.sign(
+                "HMAC",
+                cryptoKey,
+                messageData,
+            );
+
+            return toHex(new Uint8Array(signature));
+        }
+        authenticationSubmitButton.addEventListener("click", async (event) => {
+            const nonce = authenticationNonceSpan.innerText;
+            const token = authenticationTokenInput.value;
+
+            const signature = await generateHMAC(token, nonce);
+            sendMessage(JSON.stringify({
+                "c": "auth_validate",
+                "d": {
+                    "signature": signature
+                }
+            }), "authentication");
+        });
+        function handleAuthenticationMessages(data) {
+            if (data.c == "auth_nonce") {
+                authenticationNonceSpan.innerText = data.d.nonce
+            } else if (data.c == "auth_ok") {
+                updateDeviceData("auth", true);
+                authenticationFlowDiv.style.display = "none";
+                startFlowDiv.style.display = "inherit";
+                updateFlow();
+            }
+        }
+        stateFlows.authenticationFlow = () => {
+            authenticationFlowDiv.style.display = "inherit";
+            authenticationStartButton.disabled = false
+            authenticationSubmitButton.disabled = true
+            handleWsMessage = handleAuthenticationMessages;
+
+            authenticationIdInput.value = deviceData.deviceId || ""
+            authenticationTokenInput.value = deviceData.deviceToken || ""
+        };
+
+        const rawFlowDiv = document.getElementById("rawFlowDiv");
+        const rawCommandTextarea = document.getElementById("rawCommand");
+        const sendRawCommandButton = document.getElementById("sendRawCommand");
+        const closeRawFlowButton = document.getElementById("closeRawFlow");
+        closeRawFlowButton.addEventListener("click", () => {
+            rawFlowDiv.style.display = "none";
+            startFlowDiv.style.display = "inherit";
+        });
+        sendRawCommandButton.addEventListener("click", () => {
+            sendMessage(rawCommandTextarea.value);
+        });
+        stateFlows.rawFlow = () => {
+            rawFlowDiv.style.display = "inherit";
+        };
+
+        stateFlows.pingFlow = () => {
+            sendMessage(JSON.stringify({
+                "c": "ping",
+            }), "ping");
+            startFlowDiv.style.display = "inherit";
+        };
+        stateFlows.pongFlow = () => {
+            sendMessage(JSON.stringify({
+                "c": "pong",
+            }), "pong");
+            startFlowDiv.style.display = "inherit";
+        };
+
+        const startFlowDiv = document.getElementById("startFlowDiv");
+        const flowSelect = document.getElementById("flowSelect");
+        const startFlowBtn = document.getElementById("startFlowBtn");
+        startFlowBtn.addEventListener("click", (e) => {
+            startFlowDiv.style.display = "none";
+            stateFlows[flowSelect.options[flowSelect.selectedIndex].value]();
+        });
+        function updateFlow(e) {
+            const selected = flowSelect.options[flowSelect.selectedIndex].value
+            if ((selected == "registrationFlow" || selected == "authenticationFlow") && deviceData.auth) {
+                startFlowBtn.disabled = true
+            } else {
+                startFlowBtn.disabled = false
+            }
+        }
+        flowSelect.addEventListener("change", updateFlow)
+    </script>
+</body>
+
+</html>

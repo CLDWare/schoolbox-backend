@@ -3,8 +3,10 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 )
 
@@ -12,8 +14,15 @@ func TestAPI_WithMiddleware(t *testing.T) {
 	// Initialize logger for middleware test
 	logger.Init()
 
+	// Initialise Database
+	db, err := models.InitialiseDatabase()
+	if err != nil {
+		logger.Err(err)
+		os.Exit(1)
+	}
+
 	// Create API instance
-	api := NewAPI()
+	api := NewAPI(db)
 	mux := api.CreateMux()
 	handler := ApplyMiddleware(mux)
 
