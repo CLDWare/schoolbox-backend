@@ -301,6 +301,51 @@ paths:
       tags:
       - device requiresAuth requiresAdmin
   /device/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a device from the database by using its id or room. The
+        websocket connection, if present, will also be terminated.
+      parameters:
+      - description: Device ID or Room
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"room"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/apiResponses.BaseResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Delete device by id
+      tags:
+      - device requiresAuth requiresAdmin
     get:
       consumes:
       - application/json
@@ -434,6 +479,15 @@ paths:
       summary: Login with google OAuth
       tags:
       - auth
+  /logout:
+    get:
+      description: Invalidate the session token
+      responses:
+        "302":
+          description: Found
+      summary: Logout
+      tags:
+      - auth requiresAuth
   /me:
     get:
       consumes:

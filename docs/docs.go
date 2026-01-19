@@ -292,6 +292,71 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Delete a device from the database by using its id or room. The websocket connection, if present, will also be terminated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device requiresAuth requiresAdmin"
+                ],
+                "summary": "Delete device by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID or Room",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "\"id\"",
+                            "\"room\""
+                        ],
+                        "type": "string",
+                        "default": "\"id\"",
+                        "description": "Specify identifier type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.ForbiddenError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.NotFoundError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
             }
         },
         "/login": {
@@ -301,6 +366,20 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Login with google OAuth",
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "get": {
+                "description": "Invalidate the session token",
+                "tags": [
+                    "auth requiresAuth"
+                ],
+                "summary": "Logout",
                 "responses": {
                     "302": {
                         "description": "Found"
