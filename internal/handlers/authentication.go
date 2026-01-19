@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
+	contextkeys "github.com/CLDWare/schoolbox-backend/internal/contextKeys"
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 	"github.com/MonkyMars/gecho"
@@ -211,6 +212,43 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 		Domain:   h.config.Server.Host,
 		Path:     "/",
 		HttpOnly: true,
+		Expires:  session.ExpiresAt,
+	}
+	http.SetCookie(w, &cookie)
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// GetLogout
+//
+// @Summary		Logout
+// @Description	Invalidate the session token
+// @Tags		auth requiresAuth
+// @Response		302
+// @Router			/logout [get]
+func (h *AuthenticationHandler) GetLogout(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	ctx := r.Context()
+	session, ok := ctx.Value(contextkeys.AuthSessionKey).(models.AuthSession)
+	if !ok {
+		gecho.InternalServerError(w).Send()
+		logger.Err("Session does not exist for this user")
+		return
+	}
+
+	logger.Info(session)
+	gorm.G[models.AuthSession](h.db).Where("id = ?", session.ID).Update(ctx, "expires_at", time.Now())
+
+	cookie := http.Cookie{
+		Name:     "auth_session_token",
+		Value:    "",
+		Domain:   h.config.Server.Host,
+		Path:     "/",
+		HttpOnly: true,
+		Expires:  time.Unix(0, 0),
 	}
 	http.SetCookie(w, &cookie)
 	http.Redirect(w, r, "/", http.StatusFound)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/CLDWare/schoolbox-backend/config"
 	contextkeys "github.com/CLDWare/schoolbox-backend/internal/contextKeys"
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/MonkyMars/gecho"
@@ -12,7 +13,15 @@ import (
 )
 
 type AuthenticationMiddleware struct {
-	DB *gorm.DB
+	config *config.Config
+	db     *gorm.DB
+}
+
+func NewAuthenticationMiddleware(cfg *config.Config, db *gorm.DB) *AuthenticationMiddleware {
+	return &AuthenticationMiddleware{
+		config: cfg,
+		db:     db,
+	}
 }
 
 // AuthenticationMiddleware.Required checks if valid authentication is present and sets the contextkeys.AuthSessionKey, contextkeys.AuthUserKey values on the context (something like that)
@@ -28,8 +37,18 @@ func (mw AuthenticationMiddleware) Required(next func(w http.ResponseWriter, r *
 		}
 		ctx := r.Context()
 
-		session, err := gorm.G[models.AuthSession](mw.DB).Where("session_token = ?", auth_session.Value).First(ctx)
+		cookie := http.Cookie{
+			Name:     "auth_session_token",
+			Value:    "",
+			Domain:   mw.config.Server.Host,
+			Path:     "/",
+			HttpOnly: true,
+			Expires:  time.Unix(0, 0),
+		}
+
+		session, err := gorm.G[models.AuthSession](mw.db).Where("session_token = ?", auth_session.Value).First(ctx)
 		if err == gorm.ErrRecordNotFound {
+			http.SetCookie(w, &cookie)
 			gecho.Unauthorized(w).WithMessage("Invalid or expired session").Send()
 			return
 		} else if err != nil {
@@ -38,12 +57,14 @@ func (mw AuthenticationMiddleware) Required(next func(w http.ResponseWriter, r *
 		}
 
 		if time.Now().After(session.ExpiresAt) {
+			http.SetCookie(w, &cookie)
 			gecho.Unauthorized(w).WithMessage("Invalid or expired session").Send()
 			return
 		}
 
-		user, err := gorm.G[models.User](mw.DB).Where("id = ?", session.UserID).First(ctx)
+		user, err := gorm.G[models.User](mw.db).Where("id = ?", session.UserID).First(ctx)
 		if err == gorm.ErrRecordNotFound {
+			http.SetCookie(w, &cookie)
 			gecho.Unauthorized(w).WithMessage("Invalid or expired session").Send()
 			return
 		} else if err != nil {

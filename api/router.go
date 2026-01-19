@@ -27,6 +27,7 @@ import (
 
 // API holds the API dependencies
 type API struct {
+	config                *config.Config
 	database              *gorm.DB
 	versionHandler        *handlers.VersionHandler
 	websocketHandler      *handlers.WebsocketHandler
@@ -41,6 +42,7 @@ func NewAPI(db *gorm.DB, quitCh chan os.Signal) *API {
 	cfg := config.Get()
 	websocketHandler := handlers.NewWebsocketHandler(cfg, db)
 	return &API{
+		config:                cfg,
 		database:              db,
 		versionHandler:        handlers.NewVersionHandler(quitCh, cfg),
 		websocketHandler:      websocketHandler,
@@ -76,13 +78,14 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	// Websocket connection
 	mux.HandleFunc("/ws", api.websocketHandler.InitialiseWebsocket)
 
+	// authentication middleware
+	auth := middleware.NewAuthenticationMiddleware(api.config, api.database)
+
 	// Frontend authentication
 	mux.HandleFunc("/login", api.authenticationHandler.GetLogin)                  // redirect to google OAuth consent
 	mux.HandleFunc("/oauth2callback", api.authenticationHandler.GetOAuthCallback) // google OAuth consent callback
+	mux.HandleFunc("/logout", auth.Required(api.authenticationHandler.GetLogout))
 
-	auth := middleware.AuthenticationMiddleware{
-		DB: api.database,
-	}
 	// User api
 	mux.HandleFunc("/me", auth.Required(api.UserHandler.GetMe))
 	mux.HandleFunc("/user", auth.RequiresAdmin(api.UserHandler.GetUser))
