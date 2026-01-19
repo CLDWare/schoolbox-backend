@@ -38,8 +38,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
 	// Create API instance
-	apiInstance := api.NewAPI(db)
+	apiInstance := api.NewAPI(db, quit)
 
 	// Initialize the janitor
 	jan := janitor.NewJanitor(cfg, db, false)
@@ -74,8 +78,6 @@ func main() {
 	}()
 
 	// Wait for interrupt signal to gracefully shutdown the server
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	logger.Info("Shutting down server...")

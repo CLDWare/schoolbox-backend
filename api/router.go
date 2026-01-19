@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/MonkyMars/gecho"
 	"gorm.io/gorm"
@@ -36,17 +37,17 @@ type API struct {
 }
 
 // NewAPI creates a new API instance
-func NewAPI(db *gorm.DB) *API {
+func NewAPI(db *gorm.DB, quitCh chan os.Signal) *API {
 	cfg := config.Get()
 	websocketHandler := handlers.NewWebsocketHandler(cfg, db)
 	return &API{
 		database:              db,
-		versionHandler:        handlers.NewVersionHandler(cfg),
+		versionHandler:        handlers.NewVersionHandler(quitCh, cfg),
 		websocketHandler:      websocketHandler,
-		authenticationHandler: handlers.NewAuthenticationHandler(cfg, db),
-		UserHandler:           handlers.NewUserHandler(cfg, db),
-		SessionHandler:        handlers.NewSessionHandler(cfg, db, websocketHandler),
-		DeviceHandler:         handlers.NewDeviceHandler(cfg, db, websocketHandler),
+		authenticationHandler: handlers.NewAuthenticationHandler(quitCh, cfg, db),
+		UserHandler:           handlers.NewUserHandler(quitCh, cfg, db),
+		SessionHandler:        handlers.NewSessionHandler(quitCh, cfg, db, websocketHandler),
+		DeviceHandler:         handlers.NewDeviceHandler(quitCh, cfg, db, websocketHandler),
 	}
 }
 

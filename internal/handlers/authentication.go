@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -20,13 +21,15 @@ import (
 
 // RegistrationHandler handles registration-related requests
 type AuthenticationHandler struct {
+	quitCh chan os.Signal
 	config *config.Config
 	db     *gorm.DB
 }
 
 // NewRegistrationHandler creates a new registration handler
-func NewAuthenticationHandler(cfg *config.Config, db *gorm.DB) *AuthenticationHandler {
+func NewAuthenticationHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB) *AuthenticationHandler {
 	return &AuthenticationHandler{
+		quitCh: quitCh,
 		config: cfg,
 		db:     db,
 	}

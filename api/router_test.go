@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
@@ -21,8 +23,12 @@ func TestAPI_WithMiddleware(t *testing.T) {
 		os.Exit(1)
 	}
 
+	// Create interrupt signal to gracefully shutdown the server (well, we do it because the NewAPI function needs it)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
 	// Create API instance
-	api := NewAPI(db)
+	api := NewAPI(db, quit)
 	mux := api.CreateMux()
 	handler := ApplyMiddleware(mux)
 

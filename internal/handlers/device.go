@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -16,14 +17,16 @@ import (
 
 // UserHandler handles requests about users
 type DeviceHandler struct {
+	quitCh           chan os.Signal
 	config           *config.Config
 	db               *gorm.DB
 	websocketHandler *WebsocketHandler
 }
 
 // NewDeviceHandler creates a new DeviceHandler
-func NewDeviceHandler(cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *DeviceHandler {
+func NewDeviceHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *DeviceHandler {
 	return &DeviceHandler{
+		quitCh:           quitCh,
 		config:           cfg,
 		db:               db,
 		websocketHandler: websocketHandler,
@@ -128,7 +131,7 @@ func (h *DeviceHandler) GetDevice(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(deviceInfoArray).Send()
 }
 
-// GetUserById
+// GetDeviceById
 //
 // @Summary		Get device by id
 // @Description	Get info about a device by using its id or room
@@ -188,6 +191,92 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 	deviceInfo := toDeviceInfo(device)
 
 	gecho.Success(w).WithData(deviceInfo).Send()
+}
+
+// DeleteDeviceById
+//
+// @Summary		Delete device by id
+// @Description	Delete a device from the database by using its id or room. The websocket connection, if present, will also be terminated.
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			id	path		string	true	"Device ID or Room"
+// @Param			type	query		string	false	"Specify identifier type" Enums("id","room") default("id")
+// @Success		204 {object}	apiResponses.BaseResponse
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/device/{id} [delete]
+func (h *DeviceHandler) DeleteDeviceById(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+	ctx := r.Context()
+
+	query := r.URL.Query()
+	dbQuery := h.db.Model(&models.Device{})
+
+	idStr := r.PathValue("id")
+	idType := query.Get("type")
+	if idType == "" {
+		idType = "id"
+	}
+
+	switch idType {
+	case "id":
+		userID, err := strconv.ParseUint(idStr, 10, 0)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage("Invalid device ID, expected positive integer").Send()
+			return
+		}
+		dbQuery = dbQuery.Where("id = ?", userID)
+	case "room":
+		dbQuery = dbQuery.Where("room = ?", idStr)
+	default:
+		gecho.BadRequest(w).WithMessage(fmt.Sprintf("Invalid identifier type '%s'", idType)).Send()
+		return
+	}
+
+	var device models.Device
+	result := dbQuery.First(&device)
+	if result.Error == gorm.ErrRecordNotFound {
+		gecho.NotFound(w).WithMessage(fmt.Sprintf("No device with %s of '%s'", idType, idStr)).Send()
+		return
+	}
+	if result.Error != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(result.Error.Error())
+		return
+	}
+
+	connID, ok := h.websocketHandler.connectedDevices[device.ID]
+	if ok {
+		conn, ok := h.websocketHandler.connections[device.ID]
+		if ok {
+			sendMessage(conn.ws, map[string]any{
+				"e":    4,
+				"info": "Device deleted.",
+			})
+			conn.close()
+		} else {
+			logger.Err(fmt.Sprintf("Tried to terminate connection for device %d but connection %d does not exist.", device.ID, connID))
+		}
+	}
+
+	rows, err := gorm.G[models.Device](h.db).Where("id = ", device.ID).Delete(ctx)
+	if err != nil {
+		logger.Err(err)
+		gecho.InternalServerError(w).WithMessage("Failed to delete from database. Any active connection was terminated.").Send()
+	}
+	if rows > 1 {
+		logger.Err(fmt.Sprintf("Deleted %d devices instead of 1 from database!!!!", rows))
+		gecho.InternalServerError(w).Send()
+		h.quitCh <- os.Interrupt
+	}
+
+	gecho.NewErr(w).WithStatus(http.StatusNoContent).Send()
 }
 
 // ===== DEVICE REGISTRATION AND RELINKING =====

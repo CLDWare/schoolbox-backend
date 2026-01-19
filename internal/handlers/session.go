@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 // SessionHandler handles requests about sessions
 type SessionHandler struct {
+	quitCh           chan os.Signal
 	config           *config.Config
 	db               *gorm.DB
 	sessionMan       *SessionManager
@@ -26,8 +28,9 @@ type SessionHandler struct {
 }
 
 // NewSessionHandler creates a new SessionHandler
-func NewSessionHandler(cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *SessionHandler {
+func NewSessionHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *SessionHandler {
 	return &SessionHandler{
+		quitCh:           quitCh,
 		config:           cfg,
 		db:               db,
 		sessionMan:       NewSessionManager(),

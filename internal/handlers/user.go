@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -17,13 +18,15 @@ import (
 
 // UserHandler handles requests about users
 type UserHandler struct {
+	quitCh chan os.Signal
 	config *config.Config
 	db     *gorm.DB
 }
 
 // NewUserHandler creates a new UserHandler
-func NewUserHandler(cfg *config.Config, db *gorm.DB) *UserHandler {
+func NewUserHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB) *UserHandler {
 	return &UserHandler{
+		quitCh: quitCh,
 		config: cfg,
 		db:     db,
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	"github.com/MonkyMars/gecho"
@@ -9,12 +10,14 @@ import (
 
 // VersionHandler handles version-related requests
 type VersionHandler struct {
+	quitCh chan os.Signal
 	config *config.Config
 }
 
 // NewVersionHandler creates a new version handler
-func NewVersionHandler(cfg *config.Config) *VersionHandler {
+func NewVersionHandler(quitCh chan os.Signal, cfg *config.Config) *VersionHandler {
 	return &VersionHandler{
+		quitCh: quitCh,
 		config: cfg,
 	}
 }

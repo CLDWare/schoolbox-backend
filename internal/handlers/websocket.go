@@ -19,10 +19,10 @@ import (
 type WebsocketHandler struct {
 	config           *config.Config
 	db               *gorm.DB
-	connections      map[uint]*websocketConnection
+	connections      map[uint]*websocketConnection // connection id -> connection
 	nextID           uint
-	connectedDevices map[uint]uint
-	registrationPins map[uint]uint
+	connectedDevices map[uint]uint // device id -> connection id
+	registrationPins map[uint]uint // registration pin -> connection id
 	mu               sync.RWMutex
 }
 
