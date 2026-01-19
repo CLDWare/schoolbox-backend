@@ -323,7 +323,7 @@
                     "204": {
                         "description": "No Content",
                         "schema": {
-                            "$ref": "#/definitions/apiResponses.BaseResponse"
+                            "$ref": "#/definitions/apiResponses.BaseBase"
                         }
                     },
                     "401": {
@@ -1105,6 +1105,28 @@
                 "success": {
                     "type": "boolean",
                     "default": false
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-01-12T21:52:50.253429709+01:00"
+                }
+            }
+        },
+        "apiResponses.BaseBase": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Ok"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 },
                 "timestamp": {
                     "type": "string",

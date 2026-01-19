@@ -202,7 +202,7 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 // @Produce		json
 // @Param			id	path		string	true	"Device ID or Room"
 // @Param			type	query		string	false	"Specify identifier type" Enums("id","room") default("id")
-// @Success		204 {object}	apiResponses.BaseResponse
+// @Success		204 {object}	apiResponses.BaseBase
 // @Failure		401	{object}	apiResponses.UnauthorizedError
 // @Failure		403	{object}	apiResponses.ForbiddenError
 // @Failure		404	{object}	apiResponses.NotFoundError

@@ -16,6 +16,22 @@ definitions:
         format: date-time
         type: string
     type: object
+  apiResponses.BaseBase:
+    properties:
+      message:
+        example: Ok
+        type: string
+      status:
+        example: 200
+        type: integer
+      success:
+        example: true
+        type: boolean
+      timestamp:
+        example: "2026-01-12T21:52:50.253429709+01:00"
+        format: date-time
+        type: string
+    type: object
   apiResponses.BaseResponse:
     properties:
       data: {}
@@ -326,7 +342,7 @@ paths:
         "204":
           description: No Content
           schema:
-            $ref: '#/definitions/apiResponses.BaseResponse'
+            $ref: '#/definitions/apiResponses.BaseBase'
         "401":
           description: Unauthorized
           schema:
