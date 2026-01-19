@@ -265,7 +265,7 @@ func (h *DeviceHandler) DeleteDeviceById(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	rows, err := gorm.G[models.Device](h.db).Where("id = ", device.ID).Delete(ctx)
+	rows, err := gorm.G[models.Device](h.db).Where("id = ?", device.ID).Delete(ctx)
 	if err != nil {
 		logger.Err(err)
 		gecho.InternalServerError(w).WithMessage("Failed to delete from database. Any active connection was terminated.").Send()
