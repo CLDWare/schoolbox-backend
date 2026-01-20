@@ -175,7 +175,7 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 	user, err := gorm.G[models.User](h.db).Where("google_subject = ?", payload.Subject).First(ctx)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			user := models.User{
+			user = models.User{
 				GoogleSubject:  payload.Subject,
 				ProfilePicture: parsedClaims.Picture,
 				Email:          parsedClaims.Email,
