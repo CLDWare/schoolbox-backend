@@ -182,10 +182,16 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 				Name:           parsedClaims.Name,
 				DisplayName:    parsedClaims.GivenName,
 			}
-			gorm.G[models.User](h.db).Create(ctx, &user)
+			err := gorm.G[models.User](h.db).Create(ctx, &user)
+			if err != nil {
+				gecho.InternalServerError(w).Send()
+				err := fmt.Errorf("An error occured creating the user: %s", err.Error())
+				logger.Err(err)
+				return
+			}
 		} else {
 			gecho.InternalServerError(w).Send()
-			err := fmt.Errorf("An error occured retrieving/creating the user: %s", err.Error())
+			err := fmt.Errorf("An error occured retrieving the user: %s", err.Error())
 			logger.Err(err)
 			return
 		}
