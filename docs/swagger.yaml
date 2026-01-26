@@ -922,6 +922,53 @@ paths:
       summary: Get user by id
       tags:
       - user requiresAuth requiresAdmin
+  /user/{id}/pfp:
+    get:
+      consumes:
+      - application/json
+      description: Get a users profile picture by using either their id or email if
+        authenticated as the user
+      parameters:
+      - description: User ID or email
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"email"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      - image/jpeg
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get user pfp by id
+      tags:
+      - user requiresAuth
   /v:
     get:
       consumes:

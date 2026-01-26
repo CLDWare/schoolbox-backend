@@ -1025,6 +1025,74 @@
                 }
             }
         },
+        "/user/{id}/pfp": {
+            "get": {
+                "description": "Get a users profile picture by using either their id or email if authenticated as the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "image/jpeg"
+                ],
+                "tags": [
+                    "user requiresAuth"
+                ],
+                "summary": "Get user pfp by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID or email",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "\"id\"",
+                            "\"email\""
+                        ],
+                        "type": "string",
+                        "default": "\"id\"",
+                        "description": "Specify identifier type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.ForbiddenError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.NotFoundError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
         "/v": {
             "get": {
                 "description": "Get current api name, version and deployment env (prod, dev)",

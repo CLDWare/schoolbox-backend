@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -172,12 +173,37 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Download the pfp image async (also updates from google if user already exists)
+	go (func() {
+		filename := fmt.Sprintf("data/user_pfp/%s.jpg", payload.Subject)
+
+		resp, err = http.Get(parsedClaims.Picture)
+		if err != nil {
+			logger.Err(fmt.Sprintf("Failed to download profile image from '%s': %s", parsedClaims.Picture, err.Error()))
+			return
+		}
+		defer resp.Body.Close()
+
+		out, err := os.Create(filename)
+		if err != nil {
+			logger.Err(fmt.Sprintf("Failed to create file '%s': %s", filename, err.Error()))
+			return
+		}
+		defer out.Close()
+
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			logger.Err(fmt.Sprintf("Failed to copy profile image from '%s' to file '%s': %s", parsedClaims.Picture, filename, err.Error()))
+			return
+		}
+	})()
+
 	user, err := gorm.G[models.User](h.db).Where("google_subject = ?", payload.Subject).First(ctx)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			user = models.User{
 				GoogleSubject:  payload.Subject,
-				ProfilePicture: parsedClaims.Picture,
+				ProfilePicture: parsedClaims.Picture, // TODO: deprecate because this unused
 				Email:          parsedClaims.Email,
 				Name:           parsedClaims.Name,
 				DisplayName:    parsedClaims.GivenName,

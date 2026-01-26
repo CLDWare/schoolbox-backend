@@ -1,5 +1,6 @@
 bin/
 .env
 *.db
+data/
 
 *.code-workspace

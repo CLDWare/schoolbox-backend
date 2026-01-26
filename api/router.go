@@ -90,6 +90,7 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/me", auth.Required(api.UserHandler.GetMe))
 	mux.HandleFunc("/user", auth.RequiresAdmin(api.UserHandler.GetUser))
 	mux.HandleFunc("/user/{id}", auth.RequiresAdmin(api.UserHandler.GetUserById))
+	mux.HandleFunc("/user/{id}/pfp", auth.Required(api.UserHandler.GetUserPfpById))
 
 	// Device api
 	mux.HandleFunc("/device", auth.RequiresAdmin(api.DeviceHandler.GetDevice))

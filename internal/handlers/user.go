@@ -45,11 +45,12 @@ type UserInfo struct {
 }
 
 func toUserInfo(user models.User) UserInfo {
+	pfp_url := fmt.Sprintf("/api/user/%d/pfp", user.ID) // TODO: This needs some config things i think
 	return UserInfo{
 		ID:              user.ID,
 		Email:           user.Email,
 		GoogleSubject:   user.GoogleSubject,
-		ProfilePicture:  user.ProfilePicture,
+		ProfilePicture:  pfp_url,
 		Role:            user.Role,
 		CreatedAt:       user.CreatedAt,
 		Name:            user.Name,
@@ -227,4 +228,86 @@ func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request) {
 	userInfo := toUserInfo(user)
 
 	gecho.Success(w).WithData(userInfo).Send()
+}
+
+// GetUserPfpById
+//
+// @Summary		Get user pfp by id
+// @Description	Get a users profile picture by using either their id or email if authenticated as the user
+// @Tags			user requiresAuth
+// @Accept		json
+// @Produce		json,jpeg
+// @Param			id	path		string	true	"User ID or email"
+// @Param			type	query		string	false	"Specify identifier type" Enums("id","email") default("id")
+// @Success		200	{file}	jpeg
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/user/{id}/pfp [get]
+func (h *UserHandler) GetUserPfpById(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	ctx := r.Context()
+	authUser, ok := ctx.Value(contextkeys.AuthUserKey).(models.User)
+	if !ok {
+		gecho.InternalServerError(w).Send()
+	}
+
+	query := r.URL.Query()
+	dbQuery := h.db.Model(&models.User{})
+
+	idStr := r.PathValue("id")
+	idType := query.Get("type")
+	if idType == "" {
+		idType = "id"
+	}
+
+	switch idType {
+	case "id":
+		userID, err := strconv.ParseUint(idStr, 10, 0)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage("Invalid user ID, expected positive integer").Send()
+			return
+		}
+		dbQuery = dbQuery.Where("id = ?", userID)
+	case "email":
+		ok, err := regexp.Match(`^[\w\-\.]+@([\w-]+\.)+[\w-]{2,}$`, []byte(idStr))
+		if !ok {
+			gecho.BadRequest(w).WithMessage(fmt.Sprintf("Invalid email '%s'", idStr)).Send()
+			return
+		}
+		if err != nil {
+			gecho.InternalServerError(w).WithMessage(err.Error()).Send()
+			return
+		}
+		dbQuery = dbQuery.Where("email = ?", idStr)
+	default:
+		gecho.BadRequest(w).WithMessage(fmt.Sprintf("Invalid identifier type '%s'", idType)).Send()
+		return
+	}
+
+	var user models.User
+	result := dbQuery.First(&user)
+	if result.Error == gorm.ErrRecordNotFound {
+		gecho.NotFound(w).WithMessage(fmt.Sprintf("No user with %s of '%s'", idType, idStr)).Send()
+		return
+	}
+	if result.Error != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(result.Error.Error())
+		return
+	}
+
+	// auth user not requested user and auth user not admin
+	if user.ID != authUser.ID && authUser.Role != 1 {
+		gecho.Forbidden(w).Send()
+	}
+
+	filename := fmt.Sprintf("data/user_pfp/%s.jpg", user.GoogleSubject)
+
+	http.ServeFile(w, r, filename)
 }
