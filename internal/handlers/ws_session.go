@@ -115,8 +115,9 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 
 	question := models.Question{
 		Question: questionStr,
+		UserID:   userID,
 	}
-	result := h.db.FirstOrCreate(&question)
+	result := h.db.Where(question).FirstOrCreate(&question)
 	if result.Error != nil {
 		err := fmt.Errorf("An error occured retrieving/creating the question: %s", result.Error)
 		return nil, err
@@ -141,6 +142,7 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	session := models.Session{
 		UserID:     userID,
 		QuestionID: question.ID,
+		Question:   question,
 		DeviceID:   deviceID,
 		Date:       time.Now(),
 	}
