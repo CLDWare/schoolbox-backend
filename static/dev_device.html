@@ -403,6 +403,7 @@
                 authenticationNonceSpan.innerText = data.d.nonce
             } else if (data.c == "auth_ok") {
                 updateDeviceData("auth", true);
+                authenticationNonceSpan.innerText = "";
                 authenticationFlowDiv.style.display = "none";
                 startFlowDiv.style.display = "inherit";
                 updateFlow();
