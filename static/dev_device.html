@@ -166,6 +166,7 @@
         <select id="flowSelect">
             <option value="registrationFlow">Registration</option>
             <option value="authenticationFlow">Authentication</option>
+            <option value="sessionVoteFlow">Session Vote</option>
             <option value="rawFlow">Enter Raw Command</option>
             <option value="pingFlow">ping</option>
             <option value="pongFlow">pong</option>
@@ -181,6 +182,12 @@
         <button id="authenticationStart">Start authenticating</button><br>
         <input id="authenticationToken" placeholder="token">
         <button id="authenticationSubmit">Authenticate</button>
+    </div>
+    <div id="sessionVoteFlowDiv" style="display: none;">
+        <p>Enter your vote (1-5):</p>
+        <input id="sessionVoteInput" type="number" min="1" max="5" placeholder="Vote (1-5)">
+        <button id="sendSessionVote">Send Vote</button>
+        <button id="closeSessionVoteFlow">Close</button>
     </div>
     <div id="rawFlowDiv" style="display: none;">
         <textarea id="rawCommand"></textarea><br>
@@ -403,6 +410,32 @@
 
             authenticationIdInput.value = deviceData.deviceId || ""
             authenticationTokenInput.value = deviceData.deviceToken || ""
+        };
+
+        const sessionVoteFlowDiv = document.getElementById("sessionVoteFlowDiv");
+        const sessionVoteInput = document.getElementById("sessionVoteInput");
+        const sendSessionVoteButton = document.getElementById("sendSessionVote");
+        const closeSessionVoteFlowButton = document.getElementById("closeSessionVoteFlow");
+        closeSessionVoteFlowButton.addEventListener("click", () => {
+            sessionVoteFlowDiv.style.display = "none";
+            startFlowDiv.style.display = "inherit";
+        });
+        sendSessionVoteButton.addEventListener("click", () => {
+            const vote = parseInt(sessionVoteInput.value);
+            if (vote >= 1 && vote <= 5) {
+                sendMessage(JSON.stringify({
+                    "c": "session_vote",
+                    "d": {
+                        "vote": vote
+                    }
+                }), "session_vote");
+                sessionVoteInput.value = "";
+            } else {
+                alert("Please enter a vote between 1 and 5");
+            }
+        });
+        stateFlows.sessionVoteFlow = () => {
+            sessionVoteFlowDiv.style.display = "inherit";
         };
 
         const rawFlowDiv = document.getElementById("rawFlowDiv");
