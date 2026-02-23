@@ -209,7 +209,7 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 // @Failure		500	{object}	apiResponses.InternalServerError
 // @Router			/device/{id} [delete]
 func (h *DeviceHandler) DeleteDeviceById(w http.ResponseWriter, r *http.Request) {
-	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodDelete); err != nil {
 		err.Send() // Automatically sends 405 Method Not Allowed
 		return
 	}
