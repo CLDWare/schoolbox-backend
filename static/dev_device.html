@@ -121,13 +121,15 @@
             color: cornflowerblue;
         }
 
-        .autoMsg,.flowMsg {
+        .autoMsg,
+        .flowMsg {
             color: white;
             background-color: plum;
             padding: 4px 6px;
             border-radius: 15px;
             margin-left: auto;
         }
+
         .flowMsg {
             background-color: burlywood;
         }
@@ -216,6 +218,7 @@
                 deviceDataDiv.appendChild(span);
                 deviceDataDiv.appendChild(document.createElement("br"));
             }
+            updateFlow()
         };
 
         function sendMessage(data, auto) {
@@ -276,6 +279,7 @@
 
                 connectionStatusSpan.innerText = "Disconnected"
                 connectionStatusSpan.classList.remove("connected")
+                updateDeviceData("auth", false);
 
                 setTimeout(connectWebsocket, 1000)
             });
@@ -353,6 +357,7 @@
                     "id": +authenticationIdInput.value
                 }
             }), "authentication");
+            updateDeviceData("deviceId", +authenticationIdInput.value);
             authenticationStartButton.disabled = true
             authenticationSubmitButton.disabled = false
         });
@@ -383,6 +388,7 @@
         authenticationSubmitButton.addEventListener("click", async (event) => {
             const nonce = authenticationNonceSpan.innerText;
             const token = authenticationTokenInput.value;
+            updateDeviceData("deviceToken", token);
 
             const signature = await generateHMAC(token, nonce);
             sendMessage(JSON.stringify({
@@ -473,7 +479,7 @@
             startFlowDiv.style.display = "none";
             stateFlows[flowSelect.options[flowSelect.selectedIndex].value]();
         });
-        function updateFlow(e) {
+        function updateFlow() {
             const selected = flowSelect.options[flowSelect.selectedIndex].value
             if ((selected == "registrationFlow" || selected == "authenticationFlow") && deviceData.auth) {
                 startFlowBtn.disabled = true
