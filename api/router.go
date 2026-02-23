@@ -94,7 +94,11 @@ func (api *API) setupRoutes(mux *http.ServeMux) {
 
 	// Device api
 	mux.HandleFunc("/device", auth.RequiresAdmin(api.DeviceHandler.GetDevice))
-	mux.HandleFunc("/device/{id}", auth.RequiresAdmin(api.DeviceHandler.GetDeviceById))
+	deviceByIdRouter := NewMethodRouter(map[string]http.HandlerFunc{
+		http.MethodGet:    api.DeviceHandler.GetDeviceById,
+		http.MethodDelete: api.DeviceHandler.DeleteDeviceById,
+	})
+	mux.HandleFunc("/device/{id}", auth.RequiresAdmin(deviceByIdRouter))
 
 	mux.HandleFunc("/device/register", auth.RequiresAdmin(api.DeviceHandler.PostDeviceRegister))
 	mux.HandleFunc("/device/relink", auth.RequiresAdmin(api.DeviceHandler.PostDeviceRelink))
