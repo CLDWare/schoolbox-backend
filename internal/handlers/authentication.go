@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -175,7 +176,13 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 
 	// Download the pfp image async (also updates from google if user already exists)
 	go (func() {
-		filename := fmt.Sprintf("data/user_pfp/%s.jpg", payload.Subject)
+		pfp_dir := "data/user_pfp/"
+		err := os.Mkdir(pfp_dir, os.ModePerm)
+		if err != nil && err == os.ErrExist {
+			logger.Err(fmt.Errorf("failed to create directory '%s': %s", pfp_dir, err.Error()))
+		}
+		filename := filepath.Join(pfp_dir, fmt.Sprintf("%s.jpg", payload.Subject))
+		logger.Info(filename)
 
 		resp, err = http.Get(parsedClaims.Picture)
 		if err != nil {

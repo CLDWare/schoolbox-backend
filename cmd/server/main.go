@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -30,6 +32,14 @@ func main() {
 
 	// Load configuration
 	cfg := config.Get()
+
+	// Ensure data/ dir exists for database and user pfp's
+	dirpath := filepath.Join(".", "data")
+	err := os.Mkdir(dirpath, os.ModePerm)
+	if err != nil && err == os.ErrExist {
+		logger.Err(fmt.Errorf("failed to create directory '%s': %s", dirpath, err.Error()))
+		os.Exit(1)
+	}
 
 	// Initialise Database
 	db, err := models.InitialiseDatabase()
