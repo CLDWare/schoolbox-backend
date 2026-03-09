@@ -108,11 +108,42 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 	return nil
 }
 
+func isValidQuestion(questionStr string) bool {
+	for _, r := range questionStr {
+		if (r >= 'A' && r <= 'Z') ||
+			(r >= 'a' && r <= 'z') ||
+			(r >= '0' && r <= '9') {
+			continue
+		}
+
+		switch r {
+		case ' ', '!', '"', '#', '$', '%', '&', '\'',
+			'(', ')', '*', '+', ',', '-', '.', '/',
+			':', ';', '<', '=', '>', '?':
+			continue
+		}
+
+		return false
+	}
+	return true
+}
+
 var ErrDeviceNotConnected = errors.New("Device is currently connected, can not start session")
+var ErrQuestionContainsInvalidChar = errors.New("Question contains a invalid character")
+var ErrQuestionToLong = errors.New("Question length exteeds 80 characters")
 
 func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr string) (*models.Session, error) {
 	ctx := context.Background()
 
+	// Enforce question characterset
+	if !isValidQuestion(questionStr) {
+		return nil, ErrQuestionContainsInvalidChar
+	}
+	if len(questionStr) > 80 {
+		return nil, ErrQuestionToLong
+	}
+
+	// Check if question already exists
 	question := models.Question{
 		Question: questionStr,
 		UserID:   userID,

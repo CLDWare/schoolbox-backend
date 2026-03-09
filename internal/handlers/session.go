@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -262,8 +263,11 @@ func (h *SessionHandler) PostSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session, err := h.websocketHandler.startSession(user.ID, *body.DeviceID, *body.Question)
-	if err == ErrDeviceNotConnected {
+	if errors.Is(err, ErrDeviceNotConnected) {
 		gecho.ServiceUnavailable(w).WithMessage("Device currently unavailable").Send()
+		return
+	} else if errors.Is(err, ErrQuestionContainsInvalidChar) || errors.Is(err, ErrQuestionToLong) {
+		gecho.BadRequest(w).WithMessage(err.Error()).Send()
 		return
 	} else if err != nil {
 		gecho.InternalServerError(w).Send()
