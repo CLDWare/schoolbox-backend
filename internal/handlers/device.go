@@ -285,6 +285,10 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(deviceInfo).Send()
 }
 
+type DevicePatchable struct {
+	Room *string `json:"room"`
+}
+
 // PatchDeviceById
 //
 // @Summary		Patch device settings
@@ -294,7 +298,7 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 // @Produce		json
 // @Param			id	path		string	true	"Device ID or Room"
 // @Param			type	query		string	false	"Specify identifier type" Enums("id","room") default("id")
-// @Param			registration_data	body		PostDeviceRegisterBody	true	"Registration pin\n`pin`: 4 digit registration pin recieved by the device via websocket API"
+// @Param			registration_data	body		DevicePatchable	true "Properties to patch"
 // @Success		200	{object}	apiResponses.BaseResponse{data=DeviceInfo}
 // @Failure		401	{object}	apiResponses.UnauthorizedError
 // @Failure		403	{object}	apiResponses.ForbiddenError
@@ -308,7 +312,7 @@ func (h *DeviceHandler) PatchDeviceById(w http.ResponseWriter, r *http.Request) 
 	}
 	ctx := r.Context()
 
-	var body DeviceInfo
+	var body DevicePatchable
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
 		gecho.BadRequest(w).WithMessage(err.Error()).Send()
@@ -468,7 +472,7 @@ type PostDeviceRegisterResponse struct {
 // @Tags			device requiresAuth requiresAdmin
 // @Accept			json
 // @Produce		json
-// @Param			registration_data	body		PostDeviceRegisterBody	true	"Registration pin\n`pin`: 4 digit registration pin recieved by the device via websocket API"
+// @Param			registration_data	body		PostDeviceRegisterBody	true	"Registration pin\n`pin`: 4 digit registration pin recieved by the device via websocket API" default(1234)
 // @Success		200	{object}	apiResponses.BaseResponse{data=PostDeviceRegisterResponse}
 // @Failure		404	{object}	apiResponses.NotFoundError
 // @Failure		500	{object}	apiResponses.InternalServerError

@@ -464,12 +464,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "description": "Registration pin\n` + "`" + `pin` + "`" + `: 4 digit registration pin recieved by the device via websocket API",
+                        "description": "Properties to patch",
                         "name": "registration_data",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.PostDeviceRegisterBody"
+                            "$ref": "#/definitions/handlers.DevicePatchable"
                         }
                     }
                 ],
@@ -1559,6 +1559,14 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "room": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.DevicePatchable": {
+            "type": "object",
+            "properties": {
                 "room": {
                     "type": "string"
                 }
