@@ -99,6 +99,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/device/names": {
+            "get": {
+                "description": "Get id,room,available about all devices",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device requiresAuth requiresAdmin"
+                ],
+                "summary": "Get all devices",
+                "parameters": [
+                    {
+                        "maximum": 20,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Amount of devices to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "How much devices to skip before starting to return devices",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only return devices with this availability",
+                        "name": "available",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apiResponses.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/handlers.DeviceNameInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.UnauthorizedError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apiResponses.InternalServerError"
+                        }
+                    }
+                }
+            }
+        },
         "/device/register": {
             "post": {
                 "description": "Register a new device using the registration pin",
@@ -1384,6 +1458,20 @@ const docTemplate = `{
                 },
                 "registration_date": {
                     "type": "string"
+                },
+                "room": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.DeviceNameInfo": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
                 },
                 "room": {
                     "type": "string"

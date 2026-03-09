@@ -162,6 +162,15 @@ definitions:
       room:
         type: string
     type: object
+  handlers.DeviceNameInfo:
+    properties:
+      available:
+        type: boolean
+      id:
+        type: integer
+      room:
+        type: string
+    type: object
   handlers.GetVersionSuccessResponse:
     properties:
       environment:
@@ -409,6 +418,53 @@ paths:
           schema:
             $ref: '#/definitions/apiResponses.InternalServerError'
       summary: Get device by id
+      tags:
+      - device requiresAuth requiresAdmin
+  /device/names:
+    get:
+      consumes:
+      - application/json
+      description: Get id,room,available about all devices
+      parameters:
+      - default: 20
+        description: Amount of devices to return
+        in: query
+        maximum: 20
+        name: limit
+        type: integer
+      - default: 0
+        description: How much devices to skip before starting to return devices
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: Only return devices with this availability
+        in: query
+        name: available
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.DeviceNameInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Get all devices
       tags:
       - device requiresAuth requiresAdmin
   /device/register:
