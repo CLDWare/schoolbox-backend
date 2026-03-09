@@ -285,6 +285,88 @@ func (h *DeviceHandler) GetDeviceById(w http.ResponseWriter, r *http.Request) {
 	gecho.Success(w).WithData(deviceInfo).Send()
 }
 
+// PatchDeviceById
+//
+// @Summary		Patch device settings
+// @Description	Modify several device properties, such as the room
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce		json
+// @Param			id	path		string	true	"Device ID or Room"
+// @Param			type	query		string	false	"Specify identifier type" Enums("id","room") default("id")
+// @Param			registration_data	body		PostDeviceRegisterBody	true	"Registration pin\n`pin`: 4 digit registration pin recieved by the device via websocket API"
+// @Success		200	{object}	apiResponses.BaseResponse{data=DeviceInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		403	{object}	apiResponses.ForbiddenError
+// @Failure		404	{object}	apiResponses.NotFoundError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router /device/{id} [patch]
+func (h *DeviceHandler) PatchDeviceById(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodPatch); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+	ctx := r.Context()
+
+	var body DeviceInfo
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		gecho.BadRequest(w).WithMessage(err.Error()).Send()
+		logger.Err(err)
+		return
+	}
+
+	query := r.URL.Query()
+	dbQuery := h.db.Model(&models.Device{})
+
+	idStr := r.PathValue("id")
+	idType := query.Get("type")
+	if idType == "" {
+		idType = "id"
+	}
+
+	switch idType {
+	case "id":
+		userID, err := strconv.ParseUint(idStr, 10, 0)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage("Invalid device ID, expected positive integer").Send()
+			return
+		}
+		dbQuery = dbQuery.Where("id = ?", userID)
+	case "room":
+		dbQuery = dbQuery.Where("room = ?", idStr)
+	default:
+		gecho.BadRequest(w).WithMessage(fmt.Sprintf("Invalid identifier type '%s'", idType)).Send()
+		return
+	}
+
+	var device models.Device
+	result := dbQuery.First(&device)
+	if result.Error == gorm.ErrRecordNotFound {
+		gecho.NotFound(w).WithMessage(fmt.Sprintf("No device with %s of '%s'", idType, idStr)).Send()
+		return
+	}
+	if result.Error != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(result.Error.Error())
+		return
+	}
+
+	if body.Room != nil {
+		device.Room = body.Room
+	}
+
+	_, err = gorm.G[models.Device](h.db).Where("id = ?", device.ID).Updates(ctx, device)
+	if err != nil {
+		logger.Err(err)
+		gecho.InternalServerError(w).WithMessage("Failed to update device.").Send()
+	}
+
+	deviceInfo := toDeviceInfo(device)
+
+	gecho.Success(w).WithData(deviceInfo).Send()
+}
+
 // DeleteDeviceById
 //
 // @Summary		Delete device by id

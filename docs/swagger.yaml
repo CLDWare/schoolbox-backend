@@ -420,6 +420,63 @@ paths:
       summary: Get device by id
       tags:
       - device requiresAuth requiresAdmin
+    patch:
+      consumes:
+      - application/json
+      description: Modify several device properties, such as the room
+      parameters:
+      - description: Device ID or Room
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"id"'
+        description: Specify identifier type
+        enum:
+        - '"id"'
+        - '"room"'
+        in: query
+        name: type
+        type: string
+      - description: |-
+          Registration pin
+          `pin`: 4 digit registration pin recieved by the device via websocket API
+        in: body
+        name: registration_data
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PostDeviceRegisterBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apiResponses.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.DeviceInfo'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apiResponses.UnauthorizedError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apiResponses.ForbiddenError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apiResponses.NotFoundError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apiResponses.InternalServerError'
+      summary: Patch device settings
+      tags:
+      - device requiresAuth requiresAdmin
   /device/names:
     get:
       consumes:
