@@ -43,6 +43,12 @@ type DeviceInfo struct {
 	RegistrationDate time.Time  `json:"registration_date"`
 }
 
+type DeviceNameInfo struct {
+	ID        uint    `json:"id"`
+	Room      *string `json:"room"`
+	Available bool    `json:"available"`
+}
+
 func toDeviceInfo(device models.Device) DeviceInfo {
 	return DeviceInfo{
 		ID:               device.ID,
@@ -126,6 +132,92 @@ func (h *DeviceHandler) GetDevice(w http.ResponseWriter, r *http.Request) {
 	deviceInfoArray := []DeviceInfo{}
 	for _, device := range devices {
 		deviceInfoArray = append(deviceInfoArray, toDeviceInfo(device))
+	}
+
+	gecho.Success(w).WithData(deviceInfoArray).Send()
+}
+
+// GetDeviceNames
+//
+// @Summary		Get all devices
+// @Description	Get id,room,available about all devices
+// @Tags			device requiresAuth requiresAdmin
+// @Accept			json
+// @Produce			json
+// @Param			limit		query		int		false	"Amount of devices to return" default(20) maximum(20)
+// @Param			offset		query		int		false	"How much devices to skip before starting to return devices" default(0) minimum(0)
+// @Param			available	query		bool	false	"Only return devices with this availability"
+// @Success		200	{object}	apiResponses.BaseResponse{data=[]DeviceNameInfo}
+// @Failure		401	{object}	apiResponses.UnauthorizedError
+// @Failure		500	{object}	apiResponses.InternalServerError
+// @Router			/device/names [get]
+func (h *DeviceHandler) GetDeviceNames(w http.ResponseWriter, r *http.Request) {
+	if err := gecho.Handlers.HandleMethod(w, r, http.MethodGet); err != nil {
+		err.Send() // Automatically sends 405 Method Not Allowed
+		return
+	}
+
+	query := r.URL.Query()
+	dbQuery := h.db.Model(&models.Device{})
+
+	// return count filters
+	if limitStr := query.Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage(err.Error()).Send()
+			return
+		}
+		if limit > 20 {
+			limit = 20
+		}
+		dbQuery = dbQuery.Limit(limit)
+	} else {
+		dbQuery = dbQuery.Limit(20)
+	}
+	if offsetStr := query.Get("offset"); offsetStr != "" {
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			gecho.BadRequest(w).WithMessage(err.Error()).Send()
+			return
+		}
+		dbQuery = dbQuery.Offset(offset)
+	}
+	// filters
+	var availability *bool
+	if availableStr := query.Get("available"); availableStr != "" {
+		availabilityParsed, err := strconv.ParseBool(availableStr)
+		availability = &availabilityParsed
+		if err != nil {
+			gecho.BadRequest(w).WithMessage(err.Error()).Send()
+			return
+		}
+	}
+
+	var devices []models.Device
+	err := dbQuery.Find(&devices).Error
+	if err != nil {
+		gecho.InternalServerError(w).Send()
+		logger.Err(err.Error())
+		return
+	}
+
+	deviceInfoArray := []DeviceNameInfo{}
+	for _, device := range devices {
+		_, connected := h.websocketHandler.connectedDevices[device.ID] // checks if a connection id is present for this device
+		available := connected && device.ActiveSessionID == nil
+
+		if availability != nil && available != *availability { // apply ?available filter
+			continue
+		}
+
+		deviceInfoArray = append(
+			deviceInfoArray,
+			DeviceNameInfo{
+				ID:        device.ID,
+				Room:      device.Room,
+				Available: available,
+			},
+		)
 	}
 
 	gecho.Success(w).WithData(deviceInfoArray).Send()
