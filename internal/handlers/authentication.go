@@ -209,11 +209,10 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			user = models.User{
-				GoogleSubject:  payload.Subject,
-				ProfilePicture: parsedClaims.Picture, // TODO: deprecate because this unused
-				Email:          parsedClaims.Email,
-				Name:           parsedClaims.Name,
-				DisplayName:    parsedClaims.GivenName,
+				GoogleSubject: payload.Subject,
+				Email:         parsedClaims.Email,
+				Name:          parsedClaims.Name,
+				DisplayName:   parsedClaims.GivenName,
 			}
 			err := gorm.G[models.User](h.db).Create(ctx, &user)
 			if err != nil {
