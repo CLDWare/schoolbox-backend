@@ -120,7 +120,7 @@ func sendMessage(ws *websocket.Conn, msg any) error {
 	return err
 }
 
-// InitialiseWebscoket
+// InitialiseWebsocket
 //
 // @Summary		Open a connection to the device websocket API
 // @Description	Open a websocket connection used by devices to communicate with the server.
