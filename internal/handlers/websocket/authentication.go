@@ -1,4 +1,4 @@
-package handlers
+package websocket
 
 import (
 	"context"
@@ -117,14 +117,14 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 			conn.mu.RUnlock()
 			errCode := 0
 			errMsg := fmt.Sprintf("Can not start authentication in current state %d, only state 0 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 		conn.mu.RUnlock()
 
 		message, parseErr := toWebsocketAuthStartMessage(message)
 		if parseErr != nil {
-			sendMessage(conn.ws, parseErr)
+			SendMessage(conn.Ws, parseErr)
 			return nil
 		}
 		ctx := context.Background()
@@ -141,7 +141,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		if err != nil {
 			errCode := -1
 			errMsg := err.Error()
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			return nil
 		}
 
@@ -149,7 +149,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		if err != nil {
 			errCode := -1
 			errMsg := err.Error()
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			return nil
 		}
 
@@ -167,21 +167,21 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		data := map[string]any{
 			"nonce": nonce,
 		}
-		sendMessage(conn.ws, websocketMessage{Command: command, Data: data})
+		SendMessage(conn.Ws, websocketMessage{Command: command, Data: data})
 	case "auth_validate":
 		conn.mu.RLock()
 		if conn.state != 2 {
 			conn.mu.RUnlock()
 			errCode := 0
 			errMsg := fmt.Sprintf("Can not validate authentication in current state %d, only state 2 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 		conn.mu.RUnlock()
 
 		message, parseErr := toWebsocketAuthValidateMessage(message)
 		if parseErr != nil {
-			sendMessage(conn.ws, parseErr)
+			SendMessage(conn.Ws, parseErr)
 			return nil
 		}
 
@@ -189,9 +189,9 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		if !ok {
 			errCode := -1
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not authenticationFlowData", conn.stateFlow)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			logger.Err(errMsg)
-			conn.close()
+			conn.Close()
 			return errors.New(errMsg)
 		}
 
@@ -201,7 +201,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		if err != nil {
 			errCode := -1
 			errMsg := fmt.Sprintf("Could not retrieve device %d from database", flowData.targetID)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			conn.state = 0
 			conn.stateFlow = nil
 			return nil
@@ -211,7 +211,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		if err != nil {
 			errCode := 3
 			errMsg := "Invalid signature encoding."
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid auth data
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid auth data
 			conn.mu.Lock()
 			conn.state = 0
 			conn.stateFlow = nil
@@ -225,7 +225,7 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 		if !hmac.Equal(decodedSignature, expectedMAC) {
 			errCode := 3
 			errMsg := "Invalid signature."
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid auth data
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid auth data
 			conn.mu.Lock()
 			conn.state = 0
 			conn.stateFlow = nil
@@ -249,18 +249,18 @@ func authenticationFlow(conn *websocketConnection, message websocketMessage) err
 
 		conn.handler.mu.Lock()
 		// Kick old device
-		if conn.handler.connectedDevices[*conn.deviceID] != 0 {
-			oldConn := conn.handler.connections[conn.handler.connectedDevices[*conn.deviceID]]
+		if conn.handler.ConnectedDevices[*conn.deviceID] != 0 {
+			oldConn := conn.handler.Connections[conn.handler.ConnectedDevices[*conn.deviceID]]
 			errCode := 4
 			errMsg := "Logged in at other place. Only one connection allowed per device."
-			sendMessage(oldConn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // multiple logins
-			oldConn.close()
+			SendMessage(oldConn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // multiple logins
+			oldConn.Close()
 		}
 
-		conn.handler.connectedDevices[*conn.deviceID] = conn.connectionID
+		conn.handler.ConnectedDevices[*conn.deviceID] = conn.connectionID
 		conn.handler.mu.Unlock()
 
-		sendMessage(conn.ws, websocketMessage{Command: "auth_ok"})
+		SendMessage(conn.Ws, websocketMessage{Command: "auth_ok"})
 		logger.Info(fmt.Sprintf("Device %d authenticated successfully", *conn.deviceID))
 	default:
 		logger.Err(fmt.Sprintf("Invalid command '%s' reached authenticationFlow", message.Command))

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/CLDWare/schoolbox-backend/config"
+	"github.com/CLDWare/schoolbox-backend/internal/handlers/websocket"
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 	"github.com/MonkyMars/gecho"
@@ -20,11 +21,11 @@ type DeviceHandler struct {
 	quitCh           chan os.Signal
 	config           *config.Config
 	db               *gorm.DB
-	websocketHandler *WebsocketHandler
+	websocketHandler *websocket.WebsocketHandler
 }
 
 // NewDeviceHandler creates a new DeviceHandler
-func NewDeviceHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *DeviceHandler {
+func NewDeviceHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB, websocketHandler *websocket.WebsocketHandler) *DeviceHandler {
 	return &DeviceHandler{
 		quitCh:           quitCh,
 		config:           cfg,
@@ -203,7 +204,7 @@ func (h *DeviceHandler) GetDeviceNames(w http.ResponseWriter, r *http.Request) {
 
 	deviceInfoArray := []DeviceNameInfo{}
 	for _, device := range devices {
-		_, connected := h.websocketHandler.connectedDevices[device.ID] // checks if a connection id is present for this device
+		_, connected := h.websocketHandler.ConnectedDevices[device.ID] // checks if a connection id is present for this device
 		available := connected && device.ActiveSessionID == nil
 
 		if availability != nil && available != *availability { // apply ?available filter
@@ -429,15 +430,15 @@ func (h *DeviceHandler) DeleteDeviceById(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	connID, ok := h.websocketHandler.connectedDevices[device.ID]
+	connID, ok := h.websocketHandler.ConnectedDevices[device.ID]
 	if ok {
-		conn, ok := h.websocketHandler.connections[device.ID]
+		conn, ok := h.websocketHandler.Connections[device.ID]
 		if ok {
-			sendMessage(conn.ws, map[string]any{
+			websocket.SendMessage(conn.Ws, map[string]any{
 				"e":    4,
 				"info": "Device deleted.",
 			})
-			conn.close()
+			conn.Close()
 		} else {
 			logger.Err(fmt.Sprintf("Tried to terminate connection for device %d but connection %d does not exist.", device.ID, connID))
 		}
@@ -490,7 +491,7 @@ func (h *DeviceHandler) PostDeviceRegister(w http.ResponseWriter, r *http.Reques
 		logger.Err(err)
 		return
 	}
-	device, err := h.websocketHandler.registerWithPin(body.Pin, nil)
+	device, err := h.websocketHandler.RegisterWithPin(body.Pin, nil)
 	if err != nil {
 		if err.Error() == "No connectionID for this pin" {
 			gecho.BadRequest(w).WithMessage("Invalid pin").Send()
@@ -551,7 +552,7 @@ func (h *DeviceHandler) PostDeviceRelink(w http.ResponseWriter, r *http.Request)
 	}
 	device := &deviceFromDb
 
-	device, err = h.websocketHandler.registerWithPin(body.Pin, device)
+	device, err = h.websocketHandler.RegisterWithPin(body.Pin, device)
 	if err != nil {
 		if err.Error() == "No connectionID for this pin" {
 			gecho.BadRequest(w).WithMessage("Invalid pin").Send()

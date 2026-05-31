@@ -1,4 +1,4 @@
-package handlers
+package websocket
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type registrationFlowData struct {
 	pin uint
 }
 
-func generateSecureToken(n int) (string, error) {
+func GenerateSecureToken(n int) (string, error) {
 	// n is the number of bytes, not characters
 	b := make([]byte, n)
 	_, err := crand.Read(b)
@@ -46,7 +46,7 @@ func registrationFlow(conn *websocketConnection, message websocketMessage) error
 			conn.mu.RUnlock()
 			errCode := 0
 			errMsg := fmt.Sprintf("Can not start registration in current state %d, only state 0 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 		conn.mu.RUnlock()
@@ -66,13 +66,13 @@ func registrationFlow(conn *websocketConnection, message websocketMessage) error
 		data := map[string]any{
 			"pin": pin,
 		}
-		sendMessage(conn.ws, websocketMessage{Command: command, Data: data})
+		SendMessage(conn.Ws, websocketMessage{Command: command, Data: data})
 		logger.Info(fmt.Sprintf("Started registration for connection %d with pin %d", conn.handler.registrationPins[pin], pin))
 	}
 	return nil
 }
 
-func (h *WebsocketHandler) registerWithPin(pin uint, device *models.Device) (*models.Device, error) {
+func (h *WebsocketHandler) RegisterWithPin(pin uint, device *models.Device) (*models.Device, error) {
 	h.mu.RLock()
 	connectionID, ok := h.registrationPins[pin]
 	if !ok {
@@ -80,16 +80,16 @@ func (h *WebsocketHandler) registerWithPin(pin uint, device *models.Device) (*mo
 		logger.Info("Wrong pin provided for registration")
 		return nil, errors.New("No connectionID for this pin")
 	}
-	conn, ok := h.connections[connectionID]
+	conn, ok := h.Connections[connectionID]
 	h.mu.RUnlock()
 	if !ok {
 		logger.Err(fmt.Sprintf("No connection for connectionID %d during registration with pin", connectionID))
 		return nil, errors.New("No connection for connectionID")
 	}
-	h.mu.Lock() // Keep a lock on the handler so registerWithPin can not be called again until this registeration is successfull (prevent double registration)
+	h.mu.Lock() // Keep a lock on the handler so RegisterWithPin can not be called again until this registeration is successfull (prevent double registration)
 	defer h.mu.Unlock()
 
-	token, err := generateSecureToken(128)
+	token, err := GenerateSecureToken(128)
 	if err != nil {
 		logger.Err(fmt.Sprintf("An Error occured while generating secure token for %d: %s", conn.connectionID, err))
 		return nil, err
@@ -122,7 +122,7 @@ func (h *WebsocketHandler) registerWithPin(pin uint, device *models.Device) (*mo
 		"id":    device.ID,
 		"token": token,
 	}
-	sendMessage(conn.ws, websocketMessage{Command: command, Data: data})
+	SendMessage(conn.Ws, websocketMessage{Command: command, Data: data})
 
 	conn.mu.Lock()
 	conn.state = 0

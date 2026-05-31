@@ -1,4 +1,4 @@
-package handlers
+package websocket
 
 import (
 	"context"
@@ -27,8 +27,8 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 				if age >= conn.handler.config.Heartbeat.KillDelay {
 					errCode := 1
 					errMsg := "Hearbeat missed"
-					sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // heartbeat missed
-					conn.close()
+					SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // heartbeat missed
+					conn.Close()
 					logger.Info(fmt.Sprintf(
 						"Disconnected %d, heartbeat missed. %.2f%% response rate (%d/%d)",
 						conn.connectionID,
@@ -38,7 +38,7 @@ func (conn *websocketConnection) startHeartbeatMonitor() {
 					))
 				} else if age >= conn.handler.config.Heartbeat.Delay && heartbeat_age >= conn.handler.config.Heartbeat.Interval {
 					command := "ping"
-					sendMessage(conn.ws, websocketMessage{Command: command})
+					SendMessage(conn.Ws, websocketMessage{Command: command})
 					conn.mu.Lock()
 					conn.pingsSent++
 					conn.latestHeartbeat = time.Now()

@@ -1,4 +1,4 @@
-package handlers
+package websocket
 
 import (
 	"context"
@@ -69,14 +69,14 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 			conn.mu.RUnlock()
 			errCode := 0
 			errMsg := fmt.Sprintf("Can not vote while not in session. current state %d, only state 4 is allowed", conn.state)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // invalid state
 			return nil
 		}
 		conn.mu.RUnlock()
 
 		message, parseErr := toSessionVoteMessage(message)
 		if parseErr != nil {
-			sendMessage(conn.ws, parseErr)
+			SendMessage(conn.Ws, parseErr)
 			return nil
 		}
 
@@ -84,9 +84,9 @@ func sessionFlow(conn *websocketConnection, message websocketMessage) error {
 		if !ok {
 			errCode := -1
 			errMsg := fmt.Sprintf("Fatal: Invalid stateFlow type of %T, not sessionFlowData", conn.stateFlow)
-			sendMessage(conn.ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
+			SendMessage(conn.Ws, websocketErrorMessage{ErrorCode: errCode, Info: &errMsg}) // internal server error
 			logger.Err(errMsg)
-			conn.close()
+			conn.Close()
 			return errors.New(errMsg)
 		}
 
@@ -132,7 +132,7 @@ var ErrDeviceNotConnected = errors.New("Device is currently connected, can not s
 var ErrQuestionContainsInvalidChar = errors.New("Question contains a invalid character")
 var ErrQuestionToLong = errors.New("Question length exteeds 80 characters")
 
-func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr string) (*models.Session, error) {
+func (h *WebsocketHandler) StartSession(userID uint, deviceID uint, questionStr string) (*models.Session, error) {
 	ctx := context.Background()
 
 	// Enforce question characterset
@@ -155,17 +155,17 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	}
 
 	h.mu.RLock()
-	connID, ok := h.connectedDevices[deviceID]
+	connID, ok := h.ConnectedDevices[deviceID]
 	if !ok {
 		h.mu.RUnlock()
 		return nil, ErrDeviceNotConnected
 	}
-	conn, ok := h.connections[connID]
+	conn, ok := h.Connections[connID]
 	h.mu.RUnlock()
 	if !ok {
 		err := fmt.Errorf("Connection %d for device %d does not exist", connID, deviceID)
 		h.mu.Lock()
-		delete(h.connectedDevices, deviceID) // remove device from connectedDevices map because the connection no longer exists
+		delete(h.ConnectedDevices, deviceID) // remove device from connectedDevices map because the connection no longer exists
 		h.mu.Unlock()
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	data := map[string]any{
 		"text": question.Question,
 	}
-	sendMessage(conn.ws, websocketMessage{
+	SendMessage(conn.Ws, websocketMessage{
 		Command: command,
 		Data:    data,
 	})
@@ -211,18 +211,18 @@ func (h *WebsocketHandler) startSession(userID uint, deviceID uint, questionStr 
 	return &session, nil
 }
 
-func (h *WebsocketHandler) stopSession(session *models.Session) error {
+func (h *WebsocketHandler) StopSession(session *models.Session) error {
 	h.mu.RLock()
-	connID, ok := h.connectedDevices[session.DeviceID]
+	connID, ok := h.ConnectedDevices[session.DeviceID]
 	if !ok {
 		return ErrDeviceNotConnected
 	}
-	conn, ok := h.connections[connID]
+	conn, ok := h.Connections[connID]
 	h.mu.RUnlock()
 	if !ok {
 		err := fmt.Errorf("Connection %d for device %d does not exist", connID, session.DeviceID)
 		h.mu.Lock()
-		delete(h.connectedDevices, session.DeviceID) // remove device from connectedDevices map because the connection no longer exists
+		delete(h.ConnectedDevices, session.DeviceID) // remove device from connectedDevices map because the connection no longer exists
 		h.mu.Unlock()
 		return err
 	}
@@ -233,7 +233,7 @@ func (h *WebsocketHandler) stopSession(session *models.Session) error {
 	conn.mu.Unlock()
 
 	command := "session_stop"
-	sendMessage(conn.ws, websocketMessage{
+	SendMessage(conn.Ws, websocketMessage{
 		Command: command,
 	})
 

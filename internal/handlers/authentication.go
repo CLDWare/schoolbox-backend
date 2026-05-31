@@ -14,6 +14,7 @@ import (
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	contextkeys "github.com/CLDWare/schoolbox-backend/internal/contextKeys"
+	"github.com/CLDWare/schoolbox-backend/internal/handlers/websocket"
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 	"github.com/MonkyMars/gecho"
@@ -230,7 +231,7 @@ func (h *AuthenticationHandler) GetOAuthCallback(w http.ResponseWriter, r *http.
 	}
 
 	// Create auth session
-	session_token, err := generateSecureToken(128)
+	session_token, err := websocket.GenerateSecureToken(128)
 	if err != nil {
 		gecho.InternalServerError(w).WithMessage("Could not create authenticated session").Send()
 		logger.Err(err.Error())

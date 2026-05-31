@@ -13,6 +13,7 @@ import (
 
 	"github.com/CLDWare/schoolbox-backend/config"
 	contextkeys "github.com/CLDWare/schoolbox-backend/internal/contextKeys"
+	"github.com/CLDWare/schoolbox-backend/internal/handlers/websocket"
 	models "github.com/CLDWare/schoolbox-backend/pkg/db"
 	"github.com/CLDWare/schoolbox-backend/pkg/logger"
 	"github.com/MonkyMars/gecho"
@@ -25,11 +26,11 @@ type SessionHandler struct {
 	config           *config.Config
 	db               *gorm.DB
 	sessionMan       *SessionManager
-	websocketHandler *WebsocketHandler
+	websocketHandler *websocket.WebsocketHandler
 }
 
 // NewSessionHandler creates a new SessionHandler
-func NewSessionHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB, websocketHandler *WebsocketHandler) *SessionHandler {
+func NewSessionHandler(quitCh chan os.Signal, cfg *config.Config, db *gorm.DB, websocketHandler *websocket.WebsocketHandler) *SessionHandler {
 	return &SessionHandler{
 		quitCh:           quitCh,
 		config:           cfg,
@@ -262,11 +263,11 @@ func (h *SessionHandler) PostSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := h.websocketHandler.startSession(user.ID, *body.DeviceID, *body.Question)
-	if errors.Is(err, ErrDeviceNotConnected) {
+	session, err := h.websocketHandler.StartSession(user.ID, *body.DeviceID, *body.Question)
+	if errors.Is(err, websocket.ErrDeviceNotConnected) {
 		gecho.ServiceUnavailable(w).WithMessage("Device currently unavailable").Send()
 		return
-	} else if errors.Is(err, ErrQuestionContainsInvalidChar) || errors.Is(err, ErrQuestionToLong) {
+	} else if errors.Is(err, websocket.ErrQuestionContainsInvalidChar) || errors.Is(err, websocket.ErrQuestionToLong) {
 		gecho.BadRequest(w).WithMessage(err.Error()).Send()
 		return
 	} else if err != nil {
@@ -304,7 +305,7 @@ func (h *SessionHandler) StopSession(w http.ResponseWriter, ctx context.Context,
 	}
 
 	h.sessionMan.removeSession(&session)
-	h.websocketHandler.stopSession(&session)
+	h.websocketHandler.StopSession(&session)
 
 	return &session
 }
